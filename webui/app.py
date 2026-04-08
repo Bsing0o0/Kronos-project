@@ -2,6 +2,9 @@ import os
 import pandas as pd
 import numpy as np
 import json
+import re
+import csv
+import urllib.request
 import plotly.graph_objects as go
 import plotly.utils
 from flask import Flask, render_template, request, jsonify
@@ -57,6 +60,100 @@ AVAILABLE_MODELS = {
     }
 }
 
+
+def infer_symbol_from_path(file_path):
+    """Infer a stock symbol from the filename for display."""
+    if not file_path:
+        return 'Unknown'
+
+    base_name = os.path.basename(file_path)
+    name_no_ext = os.path.splitext(base_name)[0]
+
+    # Common auto-generated pattern from this project: RY_TO_5m_7d -> RY.TO
+    parts = name_no_ext.split('_')
+    if len(parts) >= 2 and len(parts[0]) <= 8 and len(parts[1]) <= 4:
+        exch = parts[1].upper()
+        if exch.isalpha():
+            return f"{parts[0].upper()}.{exch}"
+
+    return name_no_ext
+
+
+def fetch_yahoo_chart_to_csv(symbol, interval='5m', range_value='7d'):
+    """Fetch Yahoo chart data and save to data/*.csv in Kronos format."""
+    query_symbol = symbol.strip().upper()
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{query_symbol}?interval={interval}&range={range_value}"
+    req = urllib.request.Request(
+        url,
+        headers={
+            'User-Agent': 'Mozilla/5.0',
+            'Accept': 'application/json,text/plain,*/*',
+            'Referer': 'https://finance.yahoo.com/'
+        },
+    )
+
+    try:
+        data = json.load(urllib.request.urlopen(req, timeout=30))
+    except Exception as e:
+        raise RuntimeError(f"Yahoo request failed: {str(e)}")
+
+    chart = data.get('chart', {})
+    if chart.get('error'):
+        raise RuntimeError(f"Yahoo API error: {chart['error']}")
+
+    result_list = chart.get('result') or []
+    if not result_list:
+        raise RuntimeError("Yahoo API returned no result data")
+
+    result = result_list[0]
+    quote = ((result.get('indicators') or {}).get('quote') or [{}])[0]
+    timestamps = result.get('timestamp') or []
+    opens = quote.get('open') or []
+    highs = quote.get('high') or []
+    lows = quote.get('low') or []
+    closes = quote.get('close') or []
+    volumes = quote.get('volume') or []
+
+    rows = []
+    for i, ts in enumerate(timestamps):
+        o = opens[i] if i < len(opens) else None
+        h = highs[i] if i < len(highs) else None
+        l = lows[i] if i < len(lows) else None
+        c = closes[i] if i < len(closes) else None
+        v = volumes[i] if i < len(volumes) else None
+
+        if None in (o, h, l, c, v):
+            continue
+
+        dt_value = datetime.datetime.fromtimestamp(int(ts), datetime.UTC).replace(tzinfo=None)
+        amount = float(c) * float(v)
+        rows.append([
+            dt_value.strftime('%Y-%m-%d %H:%M:%S'),
+            float(o),
+            float(h),
+            float(l),
+            float(c),
+            float(v),
+            float(amount),
+        ])
+
+    if len(rows) == 0:
+        raise RuntimeError("No valid OHLCV rows returned from Yahoo")
+
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
+    os.makedirs(data_dir, exist_ok=True)
+
+    safe_symbol = re.sub(r'[^A-Za-z0-9]+', '_', query_symbol).strip('_')
+    out_name = f"{safe_symbol}_{interval}_{range_value}.csv"
+    out_path = os.path.join(data_dir, out_name)
+
+    with open(out_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['timestamps', 'open', 'high', 'low', 'close', 'volume', 'amount'])
+        writer.writerows(rows)
+
+    return out_path, len(rows)
+
 def load_data_files():
     """Scan data directory and return available data files"""
     data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
@@ -70,7 +167,8 @@ def load_data_files():
                 data_files.append({
                     'name': file,
                     'path': file_path,
-                    'size': f"{file_size / 1024:.1f} KB" if file_size < 1024*1024 else f"{file_size / (1024*1024):.1f} MB"
+                    'size': f"{file_size / 1024:.1f} KB" if file_size < 1024*1024 else f"{file_size / (1024*1024):.1f} MB",
+                    'symbol': infer_symbol_from_path(file_path)
                 })
     
     return data_files
@@ -206,19 +304,18 @@ def save_prediction_results(file_path, prediction_type, prediction_results, actu
         print(f"Failed to save prediction results: {e}")
         return None
 
-def create_prediction_chart(df, pred_df, lookback, pred_len, actual_df=None, historical_start_idx=0):
+def create_prediction_chart(df, pred_df, lookback, pred_len, actual_df=None, historical_start_idx=0, future_mode=False):
     """Create prediction chart"""
-    # Use specified historical data start position, not always from the beginning of df
-    if historical_start_idx + lookback + pred_len <= len(df):
+    if future_mode:
+        # Future mode: always use the last `lookback` rows as historical context
+        historical_df = df.tail(lookback).copy()
+    elif historical_start_idx + lookback + pred_len <= len(df):
         # Display lookback historical points + pred_len prediction points starting from specified position
         historical_df = df.iloc[historical_start_idx:historical_start_idx+lookback]
-        prediction_range = range(historical_start_idx+lookback, historical_start_idx+lookback+pred_len)
     else:
         # If data is insufficient, adjust to maximum available range
         available_lookback = min(lookback, len(df) - historical_start_idx)
-        available_pred_len = min(pred_len, max(0, len(df) - historical_start_idx - available_lookback))
         historical_df = df.iloc[historical_start_idx:historical_start_idx+available_lookback]
-        prediction_range = range(historical_start_idx+available_lookback, historical_start_idx+available_lookback+available_pred_len)
     
     # Create chart
     fig = go.Figure()
@@ -297,8 +394,13 @@ def create_prediction_chart(df, pred_df, lookback, pred_len, actual_df=None, his
         ))
     
     # Update layout
+    chart_title = (
+        f'Kronos Future Forecast — {lookback} Historical + {pred_len} Predicted Candles'
+        if future_mode else
+        f'Kronos Backtest — {lookback} Historical vs {pred_len} Predicted + Actual'
+    )
     fig.update_layout(
-        title='Kronos Financial Prediction Results - 400 Historical Points + 120 Prediction Points vs 120 Actual Points',
+        title=chart_title,
         xaxis_title='Time',
         yaxis_title='Price',
         template='plotly_white',
@@ -382,6 +484,7 @@ def load_data():
         data_info = {
             'rows': len(df),
             'columns': list(df.columns),
+            'symbol': infer_symbol_from_path(file_path),
             'start_date': df['timestamps'].min().isoformat() if 'timestamps' in df.columns else 'N/A',
             'end_date': df['timestamps'].max().isoformat() if 'timestamps' in df.columns else 'N/A',
             'price_range': {
@@ -401,196 +504,344 @@ def load_data():
     except Exception as e:
         return jsonify({'error': f'Failed to load data: {str(e)}'}), 500
 
+
+def _INTERVAL_TO_AV(interval):
+    """Map UI interval string to Alpha Vantage interval."""
+    mapping = {'1m': '1min', '5m': '5min', '15m': '15min', '30m': '30min', '1h': '60min', '60m': '60min'}
+    return mapping.get(interval, '5min')
+
+
+def _INTERVAL_TO_TD(interval):
+    """Map UI interval string to Twelve Data interval."""
+    mapping = {'1m': '1min', '5m': '5min', '15m': '15min', '30m': '30min', '1h': '1h', '60m': '1h', '1d': '1day', '5d': '1week'}
+    return mapping.get(interval, '5min')
+
+
+def fetch_alpha_vantage_to_csv(symbol, interval, api_key):
+    """Fetch intraday bars from Alpha Vantage and save to data/*.csv."""
+    av_interval = _INTERVAL_TO_AV(interval)
+    query_symbol = symbol.strip().upper()
+    url = (
+        f"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY"
+        f"&symbol={query_symbol}&interval={av_interval}&outputsize=full&apikey={api_key}"
+    )
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    try:
+        data = json.load(urllib.request.urlopen(req, timeout=30))
+    except Exception as e:
+        raise RuntimeError(f"Alpha Vantage request failed: {e}")
+
+    if 'Information' in data:
+        raise RuntimeError(f"Alpha Vantage limit/error: {data['Information']}")
+    if 'Error Message' in data:
+        raise RuntimeError(f"Alpha Vantage error: {data['Error Message']}")
+
+    ts_key = f"Time Series ({av_interval})"
+    ts = data.get(ts_key)
+    if not ts:
+        raise RuntimeError(f"Alpha Vantage returned no time series data (key expected: '{ts_key}')")
+
+    rows = []
+    for dt_str, ohlcv in sorted(ts.items()):
+        try:
+            o = float(ohlcv['1. open'])
+            h = float(ohlcv['2. high'])
+            l = float(ohlcv['3. low'])
+            c = float(ohlcv['4. close'])
+            v = float(ohlcv['5. volume'])
+            rows.append([dt_str, o, h, l, c, v, c * v])
+        except (KeyError, ValueError):
+            continue
+
+    if not rows:
+        raise RuntimeError("No valid OHLCV rows from Alpha Vantage")
+
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
+    os.makedirs(data_dir, exist_ok=True)
+    safe_sym = re.sub(r'[^A-Za-z0-9]+', '_', query_symbol).strip('_')
+    out_path = os.path.join(data_dir, f"{safe_sym}_{av_interval}_av.csv")
+    with open(out_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['timestamps', 'open', 'high', 'low', 'close', 'volume', 'amount'])
+        writer.writerows(rows)
+    return out_path, len(rows)
+
+
+def fetch_twelve_data_to_csv(symbol, interval, api_key):
+    """Fetch bars from Twelve Data and save to data/*.csv."""
+    td_interval = _INTERVAL_TO_TD(interval)
+    query_symbol = symbol.strip().upper()
+    url = (
+        f"https://api.twelvedata.com/time_series"
+        f"?symbol={query_symbol}&interval={td_interval}&outputsize=5000&apikey={api_key}"
+    )
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    try:
+        data = json.load(urllib.request.urlopen(req, timeout=30))
+    except Exception as e:
+        raise RuntimeError(f"Twelve Data request failed: {e}")
+
+    if data.get('status') == 'error':
+        raise RuntimeError(f"Twelve Data error: {data.get('message', 'unknown error')}")
+
+    values = data.get('values')
+    if not values:
+        raise RuntimeError("Twelve Data returned no values")
+
+    rows = []
+    for bar in reversed(values):
+        try:
+            o = float(bar['open'])
+            h = float(bar['high'])
+            l = float(bar['low'])
+            c = float(bar['close'])
+            v = float(bar.get('volume', 0))
+            rows.append([bar['datetime'], o, h, l, c, v, c * v])
+        except (KeyError, ValueError):
+            continue
+
+    if not rows:
+        raise RuntimeError("No valid OHLCV rows from Twelve Data")
+
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
+    os.makedirs(data_dir, exist_ok=True)
+    safe_sym = re.sub(r'[^A-Za-z0-9]+', '_', query_symbol).strip('_')
+    out_path = os.path.join(data_dir, f"{safe_sym}_{td_interval}_td.csv")
+    with open(out_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['timestamps', 'open', 'high', 'low', 'close', 'volume', 'amount'])
+        writer.writerows(rows)
+    return out_path, len(rows)
+
+
+@app.route('/api/fetch-yahoo', methods=['POST'])
+def fetch_yahoo_data():
+    """Fetch latest market bars from Yahoo and save as a local CSV."""
+    try:
+        data = request.get_json() or {}
+        symbol = (data.get('symbol') or '').strip()
+        interval = (data.get('interval') or '5m').strip()
+        range_value = (data.get('range') or '7d').strip()
+
+        if not symbol:
+            return jsonify({'error': 'Symbol cannot be empty'}), 400
+
+        out_path, row_count = fetch_yahoo_chart_to_csv(symbol, interval=interval, range_value=range_value)
+
+        return jsonify({
+            'success': True,
+            'file_path': out_path,
+            'rows': row_count,
+            'message': f'Fetched {row_count} rows for {symbol} and saved to data folder'
+        })
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch Yahoo data: {str(e)}'}), 500
+
+
+@app.route('/api/api-keys', methods=['GET'])
+def get_api_keys():
+    """Return saved API keys (for pre-filling UI fields)."""
+    keys_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'api_keys.json')
+    if os.path.exists(keys_path):
+        try:
+            with open(keys_path, 'r') as f:
+                return jsonify(json.load(f))
+        except Exception:
+            pass
+    return jsonify({'alphavantage': '', 'twelvedata': ''})
+
+
+@app.route('/api/fetch-market', methods=['POST'])
+def fetch_market_data():
+    """Unified market data fetch endpoint (Yahoo only)."""
+    try:
+        data = request.get_json() or {}
+        source = (data.get('source') or 'yahoo').strip().lower()
+        symbol = (data.get('symbol') or '').strip()
+        interval = (data.get('interval') or '5m').strip()
+        range_value = (data.get('range') or '7d').strip()
+
+        if not symbol:
+            return jsonify({'error': 'Symbol cannot be empty'}), 400
+
+        if source != 'yahoo':
+            return jsonify({'error': 'Only Yahoo source is supported in this build'}), 400
+
+        out_path, row_count = fetch_yahoo_chart_to_csv(symbol, interval=interval, range_value=range_value)
+
+        return jsonify({
+            'success': True,
+            'file_path': out_path,
+            'rows': row_count,
+            'message': f'[{source}] Fetched {row_count} rows for {symbol}'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/predict', methods=['POST'])
 def predict():
     """Perform prediction"""
     try:
         data = request.get_json()
         file_path = data.get('file_path')
-        lookback = int(data.get('lookback', 400))
-        pred_len = int(data.get('pred_len', 120))
+        lookback = int(data.get('lookback', 120))
+        pred_len = int(data.get('pred_len', 7))
         
         # Get prediction quality parameters
         temperature = float(data.get('temperature', 1.0))
         top_p = float(data.get('top_p', 0.9))
         sample_count = int(data.get('sample_count', 1))
-        
+        predict_mode = data.get('predict_mode', 'future')  # 'future' or 'backtest'
+
         if not file_path:
             return jsonify({'error': 'File path cannot be empty'}), 400
-        
+
+        if lookback < 20:
+            return jsonify({'error': 'lookback must be >= 20'}), 400
+        if pred_len < 1:
+            return jsonify({'error': 'pred_len must be >= 1'}), 400
+
         # Load data
         df, error = load_data_file(file_path)
         if error:
             return jsonify({'error': error}), 400
-        
+
         if len(df) < lookback:
             return jsonify({'error': f'Insufficient data length, need at least {lookback} rows'}), 400
-        
+
         # Perform prediction
-        if MODEL_AVAILABLE and predictor is not None:
-            try:
-                # Use real Kronos model
-                # Only use necessary columns: OHLCV, excluding amount
-                required_cols = ['open', 'high', 'low', 'close']
-                if 'volume' in df.columns:
-                    required_cols.append('volume')
-                
-                # Process time period selection
+        if not (MODEL_AVAILABLE and predictor is not None):
+            return jsonify({'error': 'Kronos model not loaded, please load model first'}), 400
+
+        try:
+            required_cols = ['open', 'high', 'low', 'close']
+            if 'volume' in df.columns:
+                required_cols.append('volume')
+
+            window_warning = None
+
+            if predict_mode == 'future':
+                # ── FUTURE FORECAST MODE ──────────────────────────────────────
+                # Use the last `lookback` rows; timestamps extend beyond last bar.
+                x_df = df.tail(lookback)[required_cols].copy()
+                x_timestamp = df.tail(lookback)['timestamps'].copy()
+
+                time_diff = (df['timestamps'].iloc[-1] - df['timestamps'].iloc[-2]
+                             if len(df) > 1 else pd.Timedelta(hours=1))
+                y_timestamp = pd.Series(
+                    pd.date_range(start=df['timestamps'].iloc[-1] + time_diff,
+                                  periods=pred_len, freq=time_diff),
+                    name='timestamps'
+                )
+                prediction_type = f"Future Forecast — next {pred_len} candles after {df['timestamps'].iloc[-1].strftime('%Y-%m-%d %H:%M')}"
+                actual_data = []
+                actual_df = None
+
+            else:
+                # ── BACKTEST MODE ────────────────────────────────────────────
                 start_date = data.get('start_date')
-                
+                used_start_date = start_date
+                selected_window_df = None
+
                 if start_date:
-                    # Custom time period - fix logic: use data within selected window
                     start_dt = pd.to_datetime(start_date)
-                    
-                    # Find data after start time
                     mask = df['timestamps'] >= start_dt
                     time_range_df = df[mask]
-                    
-                    # Ensure sufficient data: lookback + pred_len
+
                     if len(time_range_df) < lookback + pred_len:
-                        return jsonify({'error': f'Insufficient data from start time {start_dt.strftime("%Y-%m-%d %H:%M")}, need at least {lookback + pred_len} data points, currently only {len(time_range_df)} available'}), 400
-                    
-                    # Use first lookback data points within selected window for prediction
-                    x_df = time_range_df.iloc[:lookback][required_cols]
-                    x_timestamp = time_range_df.iloc[:lookback]['timestamps']
-                    
-                    # Use last pred_len data points within selected window as actual values
-                    y_timestamp = time_range_df.iloc[lookback:lookback+pred_len]['timestamps']
-                    
-                    # Calculate actual time period length
-                    start_timestamp = time_range_df['timestamps'].iloc[0]
-                    end_timestamp = time_range_df['timestamps'].iloc[lookback+pred_len-1]
-                    time_span = end_timestamp - start_timestamp
-                    
-                    prediction_type = f"Kronos model prediction (within selected window: first {lookback} data points for prediction, last {pred_len} data points for comparison, time span: {time_span})"
+                        selected_window_df = df.tail(lookback + pred_len).copy()
+                        used_start_date = None
+                        window_warning = (
+                            f"Selected start had only {len(time_range_df)} points. "
+                            f"Auto-shifted to latest {lookback + pred_len}-point window."
+                        )
+                    else:
+                        selected_window_df = time_range_df.iloc[:lookback + pred_len].copy()
+
+                    x_df = selected_window_df.iloc[:lookback][required_cols]
+                    x_timestamp = selected_window_df.iloc[:lookback]['timestamps']
+                    y_timestamp = selected_window_df.iloc[lookback:lookback + pred_len]['timestamps']
+                    time_span = selected_window_df['timestamps'].iloc[lookback + pred_len - 1] - selected_window_df['timestamps'].iloc[0]
+                    prediction_type = f"Backtest (window: {lookback} historical + {pred_len} predicted, span: {time_span})"
                 else:
-                    # Use latest data
                     x_df = df.iloc[:lookback][required_cols]
                     x_timestamp = df.iloc[:lookback]['timestamps']
-                    y_timestamp = df.iloc[lookback:lookback+pred_len]['timestamps']
-                    prediction_type = "Kronos model prediction (latest data)"
-                
-                # Ensure timestamps are Series format, not DatetimeIndex, to avoid .dt attribute error in Kronos model
-                if isinstance(x_timestamp, pd.DatetimeIndex):
-                    x_timestamp = pd.Series(x_timestamp, name='timestamps')
-                if isinstance(y_timestamp, pd.DatetimeIndex):
-                    y_timestamp = pd.Series(y_timestamp, name='timestamps')
-                
-                pred_df = predictor.predict(
-                    df=x_df,
-                    x_timestamp=x_timestamp,
-                    y_timestamp=y_timestamp,
-                    pred_len=pred_len,
-                    T=temperature,
-                    top_p=top_p,
-                    sample_count=sample_count
-                )
-                
-            except Exception as e:
-                return jsonify({'error': f'Kronos model prediction failed: {str(e)}'}), 500
-        else:
-            return jsonify({'error': 'Kronos model not loaded, please load model first'}), 400
-        
-        # Prepare actual data for comparison (if exists)
-        actual_data = []
-        actual_df = None
-        
-        if start_date:  # Custom time period
-            # Fix logic: use data within selected window
-            # Prediction uses first 400 data points within selected window
-            # Actual data should be last 120 data points within selected window
-            start_dt = pd.to_datetime(start_date)
-            
-            # Find data starting from start_date
-            mask = df['timestamps'] >= start_dt
-            time_range_df = df[mask]
-            
-            if len(time_range_df) >= lookback + pred_len:
-                # Get last 120 data points within selected window as actual values
-                actual_df = time_range_df.iloc[lookback:lookback+pred_len]
-                
-                for i, (_, row) in enumerate(actual_df.iterrows()):
-                    actual_data.append({
-                        'timestamp': row['timestamps'].isoformat(),
-                        'open': float(row['open']),
-                        'high': float(row['high']),
-                        'low': float(row['low']),
-                        'close': float(row['close']),
-                        'volume': float(row['volume']) if 'volume' in row else 0,
-                        'amount': float(row['amount']) if 'amount' in row else 0
-                    })
-        else:  # Latest data
-            # Prediction uses first 400 data points
-            # Actual data should be 120 data points after first 400 data points
-            if len(df) >= lookback + pred_len:
-                actual_df = df.iloc[lookback:lookback+pred_len]
-                for i, (_, row) in enumerate(actual_df.iterrows()):
-                    actual_data.append({
-                        'timestamp': row['timestamps'].isoformat(),
-                        'open': float(row['open']),
-                        'high': float(row['high']),
-                        'low': float(row['low']),
-                        'close': float(row['close']),
-                        'volume': float(row['volume']) if 'volume' in row else 0,
-                        'amount': float(row['amount']) if 'amount' in row else 0
-                    })
-        
-        # Create chart - pass historical data start position
-        if start_date:
-            # Custom time period: find starting position of historical data in original df
-            start_dt = pd.to_datetime(start_date)
-            mask = df['timestamps'] >= start_dt
-            historical_start_idx = df[mask].index[0] if len(df[mask]) > 0 else 0
-        else:
-            # Latest data: start from beginning
-            historical_start_idx = 0
-        
-        chart_json = create_prediction_chart(df, pred_df, lookback, pred_len, actual_df, historical_start_idx)
-        
-        # Prepare prediction result data - fix timestamp calculation logic
-        if 'timestamps' in df.columns:
-            if start_date:
-                # Custom time period: use selected window data to calculate timestamps
-                start_dt = pd.to_datetime(start_date)
-                mask = df['timestamps'] >= start_dt
-                time_range_df = df[mask]
-                
-                if len(time_range_df) >= lookback:
-                    # Calculate prediction timestamps starting from last time point of selected window
-                    last_timestamp = time_range_df['timestamps'].iloc[lookback-1]
-                    time_diff = df['timestamps'].iloc[1] - df['timestamps'].iloc[0]
-                    future_timestamps = pd.date_range(
-                        start=last_timestamp + time_diff,
-                        periods=pred_len,
-                        freq=time_diff
-                    )
+                    y_timestamp = df.iloc[lookback:lookback + pred_len]['timestamps']
+                    prediction_type = "Backtest (first window)"
+
+                # Build actual data for comparison
+                if selected_window_df is not None and len(selected_window_df) >= lookback + pred_len:
+                    actual_df = selected_window_df.iloc[lookback:lookback + pred_len]
+                elif len(df) >= lookback + pred_len and not start_date:
+                    actual_df = df.iloc[lookback:lookback + pred_len]
                 else:
-                    future_timestamps = []
-            else:
-                # Latest data: calculate from last time point of entire data file
-                last_timestamp = df['timestamps'].iloc[-1]
-                time_diff = df['timestamps'].iloc[1] - df['timestamps'].iloc[0]
-                future_timestamps = pd.date_range(
-                    start=last_timestamp + time_diff,
-                    periods=pred_len,
-                    freq=time_diff
-                )
+                    actual_df = None
+
+                actual_data = []
+                if actual_df is not None:
+                    for _, row in actual_df.iterrows():
+                        actual_data.append({
+                            'timestamp': row['timestamps'].isoformat(),
+                            'open': float(row['open']), 'high': float(row['high']),
+                            'low': float(row['low']),   'close': float(row['close']),
+                            'volume': float(row['volume']) if 'volume' in row else 0,
+                            'amount': float(row['amount']) if 'amount' in row else 0
+                        })
+
+            # Ensure Series type for timestamps
+            if isinstance(x_timestamp, pd.DatetimeIndex):
+                x_timestamp = pd.Series(x_timestamp, name='timestamps')
+            if isinstance(y_timestamp, pd.DatetimeIndex):
+                y_timestamp = pd.Series(y_timestamp, name='timestamps')
+
+            pred_df = predictor.predict(
+                df=x_df,
+                x_timestamp=x_timestamp,
+                y_timestamp=y_timestamp,
+                pred_len=pred_len,
+                T=temperature,
+                top_p=top_p,
+                sample_count=sample_count
+            )
+
+        except Exception as e:
+            return jsonify({'error': f'Kronos model prediction failed: {str(e)}'}), 500
+
+        # Build prediction result rows with timestamps
+        if predict_mode == 'future':
+            pred_timestamps = pd.DatetimeIndex(y_timestamp.values)
         else:
-            future_timestamps = range(len(df), len(df) + pred_len)
-        
+            time_diff = (df['timestamps'].iloc[1] - df['timestamps'].iloc[0]
+                         if len(df) > 1 else pd.Timedelta(hours=1))
+            ref_df = x_df if predict_mode == 'future' else (
+                selected_window_df if 'selected_window_df' in dir() and selected_window_df is not None else df.iloc[:lookback])
+            last_ts = x_timestamp.iloc[-1]
+            pred_timestamps = pd.date_range(start=last_ts + time_diff, periods=pred_len, freq=time_diff)
+
         prediction_results = []
         for i, (_, row) in enumerate(pred_df.iterrows()):
+            ts_str = pd.Timestamp(pred_timestamps[i]).isoformat() if i < len(pred_timestamps) else f"T{i}"
             prediction_results.append({
-                'timestamp': future_timestamps[i].isoformat() if i < len(future_timestamps) else f"T{i}",
-                'open': float(row['open']),
-                'high': float(row['high']),
-                'low': float(row['low']),
-                'close': float(row['close']),
+                'timestamp': ts_str,
+                'open': float(row['open']), 'high': float(row['high']),
+                'low': float(row['low']),   'close': float(row['close']),
                 'volume': float(row['volume']) if 'volume' in row else 0,
                 'amount': float(row['amount']) if 'amount' in row else 0
             })
-        
-        # Save prediction results to file
+
+        # Create chart
+        if predict_mode == 'future':
+            chart_json = create_prediction_chart(df, pred_df, lookback, pred_len,
+                                                  actual_df=None, future_mode=True)
+        else:
+            historical_start_idx = (selected_window_df.index[0]
+                                     if 'selected_window_df' in dir() and selected_window_df is not None else 0)
+            chart_json = create_prediction_chart(df, pred_df, lookback, pred_len,
+                                                  actual_df=actual_df,
+                                                  historical_start_idx=historical_start_idx,
+                                                  future_mode=False)
+
+        # Save results
         try:
             save_prediction_results(
                 file_path=file_path,
@@ -599,17 +850,15 @@ def predict():
                 actual_data=actual_data,
                 input_data=x_df,
                 prediction_params={
-                    'lookback': lookback,
-                    'pred_len': pred_len,
-                    'temperature': temperature,
-                    'top_p': top_p,
-                    'sample_count': sample_count,
-                    'start_date': start_date if start_date else 'latest'
+                    'lookback': lookback, 'pred_len': pred_len,
+                    'temperature': temperature, 'top_p': top_p,
+                    'sample_count': sample_count, 'mode': predict_mode,
+                    'window_warning': window_warning
                 }
             )
         except Exception as e:
             print(f"Failed to save prediction results: {e}")
-        
+
         return jsonify({
             'success': True,
             'prediction_type': prediction_type,
@@ -617,7 +866,8 @@ def predict():
             'prediction_results': prediction_results,
             'actual_data': actual_data,
             'has_comparison': len(actual_data) > 0,
-            'message': f'Prediction completed, generated {pred_len} prediction points' + (f', including {len(actual_data)} actual data points for comparison' if len(actual_data) > 0 else '')
+            'message': f'Prediction completed, generated {pred_len} prediction points' + (f', including {len(actual_data)} actual data points for comparison' if len(actual_data) > 0 else ''),
+            'warning': window_warning
         })
         
     except Exception as e:

@@ -4,9 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kronos Financial Prediction Web UI</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap');
+
+        :root {
+            --bg-1: #03111f;
+            --bg-2: #07243a;
+            --bg-3: #0c3254;
+            --panel: rgba(6, 27, 45, 0.72);
+            --panel-strong: rgba(8, 34, 58, 0.9);
+            --line: rgba(80, 206, 255, 0.35);
+            --line-strong: rgba(80, 206, 255, 0.75);
+            --text: #e9f5ff;
+            --muted: #9fb9cf;
+            --cyan: #4bd7ff;
+            --blue: #4f8cff;
+            --indigo: #5d5dfc;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,189 +31,537 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background:
+                radial-gradient(circle at 12% 16%, rgba(79, 140, 255, 0.2), transparent 26%),
+                radial-gradient(circle at 82% 12%, rgba(75, 215, 255, 0.12), transparent 24%),
+                linear-gradient(115deg, var(--bg-1) 0%, var(--bg-2) 50%, var(--bg-3) 100%);
             min-height: 100vh;
-            color: #333;
+            color: var(--text);
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(75, 215, 255, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(75, 215, 255, 0.05) 1px, transparent 1px);
+            background-size: 56px 56px;
+            mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.45), transparent 92%);
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent 0%, var(--cyan) 35%, var(--blue) 65%, transparent 100%);
+            box-shadow: 0 0 25px rgba(75, 215, 255, 0.55);
+            z-index: 2;
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1700px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 28px 24px 40px;
+            position: relative;
+            z-index: 1;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 30px;
-            color: white;
+            margin-bottom: 34px;
+            background: linear-gradient(120deg, rgba(11, 39, 65, 0.86), rgba(9, 31, 51, 0.62));
+            backdrop-filter: blur(12px);
+            padding: 36px 24px;
+            border-radius: 18px;
+            border: 1px solid var(--line);
+            box-shadow: inset 0 0 0 1px rgba(75, 215, 255, 0.14), 0 18px 42px rgba(0, 0, 0, 0.35);
         }
 
         .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: clamp(2rem, 3.7vw, 3.2rem);
+            margin-bottom: 8px;
+            background: linear-gradient(92deg, #c4f0ff 0%, var(--cyan) 40%, #8c9dff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            text-shadow: 0 0 18px rgba(75, 215, 255, 0.15);
         }
 
         .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
+            font-size: 0.98rem;
+            color: var(--muted);
+            font-weight: 500;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
         }
 
         .main-content {
             display: grid;
-            grid-template-columns: 1fr 2fr;
+            grid-template-columns: minmax(86px, 360px) 1fr;
             gap: 30px;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
+            align-items: start;
+        }
+
+        .main-content.panel-collapsed {
+            grid-template-columns: 86px 1fr;
+        }
+
+        .panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .panel-toggle-btn {
+            border: 1px solid rgba(75, 215, 255, 0.4);
+            background: rgba(75, 215, 255, 0.12);
+            color: #c4e9ff;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-size: 1rem;
+            line-height: 1;
+            box-shadow: 0 4px 14px rgba(75, 215, 255, 0.15);
+        }
+
+        .panel-toggle-btn:hover {
+            background: rgba(75, 215, 255, 0.2);
+            box-shadow: 0 6px 18px rgba(75, 215, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .panel-content {
+            transition: opacity 0.25s ease, transform 0.25s ease, max-height 0.25s ease;
+        }
+
+        .rail-decor {
+            display: none;
+        }
+
+        .rail-guides {
+            position: absolute;
+            inset: 16px 10px;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .rail-guides::before,
+        .rail-guides::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: linear-gradient(to bottom, transparent 0%, rgba(75, 215, 255, 0.75) 20%, rgba(75, 215, 255, 0.18) 65%, transparent 100%);
+            box-shadow: 0 0 12px rgba(75, 215, 255, 0.55);
+        }
+
+        .rail-guides::before {
+            left: 8px;
+        }
+
+        .rail-guides::after {
+            right: 8px;
+            opacity: 0.65;
+        }
+
+        .rail-scan {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: -28%;
+            height: 28%;
+            background: linear-gradient(to bottom, transparent 0%, rgba(75, 215, 255, 0.2) 35%, rgba(75, 215, 255, 0.55) 50%, rgba(75, 215, 255, 0.2) 65%, transparent 100%);
+            filter: blur(0.5px);
+            animation: railScanMove 2.8s linear infinite;
+        }
+
+        @keyframes railScanMove {
+            from { transform: translateY(0); }
+            to { transform: translateY(460%); }
+        }
+
+        .rail-markers {
+            position: absolute;
+            left: 50%;
+            top: 24px;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 9px;
+            pointer-events: none;
+        }
+
+        .rail-marker {
+            width: 24px;
+            text-align: center;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            color: rgba(190, 235, 255, 0.95);
+            text-shadow: 0 0 8px rgba(75, 215, 255, 0.4);
+        }
+
+        .rail-marker-dot {
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: var(--cyan);
+            box-shadow: 0 0 8px rgba(75, 215, 255, 0.8);
+            margin: 2px 0;
         }
 
         .control-panel {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            background: linear-gradient(125deg, rgba(7, 34, 57, 0.86), rgba(6, 28, 48, 0.78));
+            backdrop-filter: blur(14px);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 30px;
             height: fit-content;
+            box-shadow: inset 0 0 0 1px rgba(75, 215, 255, 0.12), 0 14px 34px rgba(0, 0, 0, 0.38);
+            position: static;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            width: 100%;
+            z-index: 3;
+        }
+
+        .control-panel:hover {
+            border-color: var(--line-strong);
+            box-shadow: inset 0 0 0 1px rgba(75, 215, 255, 0.2), 0 20px 44px rgba(0, 0, 0, 0.45);
         }
 
         .control-panel h2 {
-            color: #4a5568;
-            margin-bottom: 20px;
-            font-size: 1.5rem;
-            border-bottom: 2px solid #e2e8f0;
-            padding-bottom: 10px;
+            font-family: 'Rajdhani', sans-serif;
+            color: #bfe6ff;
+            margin-bottom: 0;
+            font-size: 1.55rem;
+            border-bottom: 1px solid rgba(75, 215, 255, 0.38);
+            padding-bottom: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            flex: 1;
+        }
+
+        .main-content.panel-collapsed .control-panel {
+            padding: 22px 14px;
+            cursor: e-resize;
+        }
+
+        .main-content.panel-collapsed .rail-decor {
+            display: block;
+        }
+
+        .main-content.panel-collapsed .panel-head {
+            justify-content: center;
+            min-height: 230px;
+            margin-bottom: 0;
+        }
+
+        .main-content.panel-collapsed .control-panel h2 {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            border-bottom: none;
+            padding-bottom: 0;
+            text-align: center;
+            letter-spacing: 0.1em;
+            font-size: 1.02rem;
+            margin: 0;
+        }
+
+        .main-content.panel-collapsed .panel-toggle-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+        }
+
+        .main-content.panel-collapsed .panel-content {
+            opacity: 0;
+            max-height: 0;
+            pointer-events: none;
+            transform: translateX(-10px);
+        }
+
+        .main-content.panel-collapsed .control-panel:hover {
+            width: 360px;
+            padding: 30px;
+            cursor: default;
+            border-color: var(--line-strong);
+            box-shadow: inset 0 0 0 1px rgba(75, 215, 255, 0.2), 0 26px 50px rgba(0, 0, 0, 0.52);
+        }
+
+        .main-content.panel-collapsed .control-panel:hover .rail-decor {
+            display: none;
+        }
+
+        .main-content.panel-collapsed .control-panel:hover .panel-head {
+            justify-content: space-between;
+            min-height: auto;
+            margin-bottom: 18px;
+        }
+
+        .main-content.panel-collapsed .control-panel:hover h2 {
+            writing-mode: horizontal-tb;
+            transform: none;
+            border-bottom: 1px solid rgba(75, 215, 255, 0.38);
+            padding-bottom: 12px;
+            letter-spacing: 0.04em;
+            font-size: 1.55rem;
+        }
+
+        .main-content.panel-collapsed .control-panel:hover .panel-toggle-btn {
+            position: static;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+        }
+
+        .main-content.panel-collapsed .control-panel:hover .panel-content {
+            opacity: 1;
+            max-height: 8000px;
+            pointer-events: auto;
+            transform: translateX(0);
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 22px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #4a5568;
+            margin-bottom: 10px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            color: #b6d7ef;
+            font-size: 1.03rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
         }
 
         .form-group select,
         .form-group input {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
+            padding: 12px 16px;
+            background: rgba(163, 221, 255, 0.04);
+            border: 1.5px solid rgba(75, 215, 255, 0.26);
+            border-radius: 11px;
             font-size: 14px;
-            transition: border-color 0.3s ease;
+            color: var(--text);
+            transition: all 0.3s ease;
+            outline: none;
         }
 
+        .form-group select {
+            background: rgba(163, 221, 255, 0.04) url("data:image/svg+xml;utf8,<svg fill='%23d8f1ff' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>") no-repeat right 12px center;
+            background-size: 24px;
+            padding-right: 40px;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .form-group select option {
+            background: #0a2136;
+            color: #d5ebff;
+        }
+
+        .form-group select:hover {
+            border-color: rgba(102, 126, 234, 0.6);
+        }
+
+        .form-group input:hover,
         .form-group select:focus,
         .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
+            border-color: var(--cyan);
+            background: rgba(75, 215, 255, 0.09);
+            box-shadow: 0 0 0 3px rgba(75, 215, 255, 0.14), 0 0 22px rgba(79, 140, 255, 0.22);
         }
 
-        /* Prediction quality parameter styles */
         .form-group input[type="range"] {
             width: 70%;
             margin-right: 10px;
-        }
-
-        .form-group input[type="number"] {
-            width: 100%;
+            height: 6px;
+            accent-color: #667eea;
+            cursor: pointer;
         }
 
         .form-group span {
             display: inline-block;
             min-width: 40px;
             font-weight: 600;
-            color: #667eea;
+            color: #bfe6ff;
+            background: rgba(75, 215, 255, 0.14);
+            padding: 4px 12px;
+            border-radius: 6px;
         }
 
         .form-text {
-            font-size: 12px;
-            color: #718096;
-            margin-top: 5px;
+            font-size: 11px;
+            color: rgba(174, 206, 230, 0.82);
+            margin-top: 6px;
+            font-weight: 500;
         }
 
         .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(110deg, #258cff 0%, #4f8cff 42%, #625fff 100%);
             color: white;
             border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 16px;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transition: all 0.3s ease;
             width: 100%;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 6px 18px rgba(79, 140, 255, 0.34), inset 0 0 0 1px rgba(220, 238, 255, 0.2);
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
         }
 
         .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 26px rgba(75, 215, 255, 0.24), 0 10px 28px rgba(79, 140, 255, 0.28);
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:active {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
 
         .btn:disabled {
-            opacity: 0.6;
+            opacity: 0.5;
             cursor: not-allowed;
             transform: none;
         }
 
         .btn-secondary {
-            background: linear-gradient(135deg, #718096 0%, #4a5568 100%);
+            background: linear-gradient(110deg, #3d5875 0%, #29435f 100%);
         }
 
         .btn-success {
-            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            background: linear-gradient(110deg, #00a886 0%, #0db39f 100%);
         }
 
         .btn-warning {
-            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+            background: linear-gradient(110deg, #f3a11e 0%, #ff7f2a 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
         }
 
         .status {
-            padding: 15px;
-            border-radius: 8px;
+            padding: 16px 20px;
+            border-radius: 12px;
             margin-bottom: 20px;
             font-weight: 500;
+            border-left: 4px solid;
+            backdrop-filter: blur(10px);
+            background-size: 100%;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
 
         .status.success {
-            background: #c6f6d5;
-            color: #22543d;
-            border: 1px solid #9ae6b4;
+            background: rgba(16, 185, 129, 0.1);
+            color: #a7f3d0;
+            border-left-color: #10b981;
         }
 
         .status.error {
-            background: #fed7d7;
-            color: #742a2a;
-            border: 1px solid #feb2b2;
+            background: rgba(239, 68, 68, 0.1);
+            color: #fca5a5;
+            border-left-color: #ef4444;
         }
 
         .status.info {
-            background: #bee3f8;
-            color: #2a4365;
-            border: 1px solid #90cdf4;
+            background: rgba(59, 130, 246, 0.1);
+            color: #93c5fd;
+            border-left-color: #3b82f6;
         }
 
         .status.warning {
-            background: #fef5e7;
-            color: #744210;
-            border: 1px solid #fbd38d;
+            background: rgba(245, 158, 11, 0.1);
+            color: #fcd34d;
+            border-left-color: #f59e0b;
         }
 
         .chart-container {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            background:
+                linear-gradient(140deg, rgba(10, 37, 61, 0.88), rgba(9, 31, 52, 0.74)),
+                radial-gradient(circle at 85% 0%, rgba(75, 215, 255, 0.14), transparent 42%);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 35px;
+            box-shadow: inset 0 0 0 1px rgba(75, 215, 255, 0.14), 0 20px 44px rgba(0, 0, 0, 0.42);
+            transition: all 0.3s ease;
+        }
+
+        .chart-container:hover {
+            border-color: var(--line-strong);
+            box-shadow: inset 0 0 0 1px rgba(75, 215, 255, 0.2), 0 24px 52px rgba(0, 0, 0, 0.47);
         }
 
         .chart-container h2 {
-            color: #4a5568;
-            margin-bottom: 20px;
-            font-size: 1.5rem;
-            border-bottom: 2px solid #e2e8f0;
-            padding-bottom: 10px;
+            font-family: 'Rajdhani', sans-serif;
+            color: #d2efff;
+            margin-bottom: 25px;
+            font-size: 1.62rem;
+            border-bottom: 1px solid rgba(75, 215, 255, 0.38);
+            padding-bottom: 12px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
         }
 
         #chart {
@@ -205,80 +570,92 @@
         }
 
         .data-info {
-            background: #f7fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 15px;
+            background: rgba(75, 215, 255, 0.07);
+            border: 1px solid rgba(75, 215, 255, 0.28);
+            border-radius: 12px;
+            padding: 20px;
             margin-bottom: 20px;
+            backdrop-filter: blur(10px);
         }
 
         .data-info h3 {
-            color: #4a5568;
-            margin-bottom: 10px;
+            color: #667eea;
+            margin-bottom: 12px;
             font-size: 1.1rem;
+            font-weight: 600;
         }
 
         .data-info p {
-            margin-bottom: 5px;
-            color: #4a5568;
+            margin-bottom: 8px;
+            color: rgba(232, 234, 237, 0.85);
+            font-size: 0.95rem;
         }
 
         .data-info strong {
-            color: #2d3748;
+            color: #a5b4fc;
         }
 
-        /* Time window selector styles */
         .time-window-container {
-            background: #f7fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
+            background: rgba(75, 215, 255, 0.07);
+            border: 1px solid rgba(75, 215, 255, 0.28);
+            border-radius: 12px;
+            padding: 22px;
             margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .time-window-container:hover {
+            border-color: rgba(102, 126, 234, 0.5);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
         }
 
         .time-window-container h3 {
-            color: #4a5568;
-            margin-bottom: 15px;
+            color: #667eea;
+            margin-bottom: 16px;
             font-size: 1.1rem;
+            font-weight: 600;
         }
 
         .time-window-info {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 15px;
+            margin-bottom: 16px;
             font-size: 12px;
-            color: #666;
+            color: rgba(176, 190, 197, 0.9);
+            gap: 10px;
         }
 
         .time-window-slider {
             position: relative;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
         .slider-track {
             position: relative;
-            height: 6px;
-            background: #e2e8f0;
-            border-radius: 3px;
+            height: 8px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 4px;
             cursor: pointer;
         }
 
         .slider-handle {
             position: absolute;
             top: -7px;
-            width: 20px;
-            height: 20px;
-            background: #667eea;
+            width: 22px;
+            height: 22px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 50%;
             cursor: grab;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            border: 3px solid rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
             z-index: 10;
+            transition: all 0.3s ease;
         }
 
         .slider-handle:hover {
-            background: #5a67d8;
-            transform: scale(1.1);
+            transform: scale(1.15);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
         }
 
         .slider-handle:active {
@@ -287,9 +664,9 @@
 
         .slider-selection {
             position: absolute;
-            height: 6px;
-            background: #48bb78;
-            border-radius: 3px;
+            height: 8px;
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            border-radius: 4px;
             top: 0;
         }
 
@@ -297,88 +674,102 @@
             display: flex;
             justify-content: space-between;
             font-size: 11px;
-            color: #999;
-            margin-top: 5px;
+            color: rgba(176, 190, 197, 0.7);
+            margin-top: 6px;
         }
 
-        /* Comparison analysis styles */
         .comparison-section {
-            background: #f7fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
+            background: rgba(75, 215, 255, 0.07);
+            border: 1px solid rgba(75, 215, 255, 0.28);
+            border-radius: 12px;
+            padding: 22px;
             margin-top: 20px;
+            backdrop-filter: blur(10px);
         }
 
         .comparison-section h3 {
-            color: #4a5568;
-            margin-bottom: 15px;
+            color: #667eea;
+            margin-bottom: 16px;
             font-size: 1.1rem;
+            font-weight: 600;
         }
 
         .comparison-info {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 15px;
+            background: rgba(102, 126, 234, 0.05);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
         }
 
         .comparison-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
+            margin-top: 16px;
         }
 
         .comparison-table th,
         .comparison-table td {
-            border: 1px solid #e2e8f0;
-            padding: 8px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            padding: 10px;
             text-align: center;
             font-size: 12px;
+            color: rgba(232, 234, 237, 0.85);
         }
 
         .comparison-table th {
-            background: #f7fafc;
-            font-weight: 600;
-        }
-
-        .error-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .error-stat {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 15px;
-            text-align: center;
-        }
-
-        .error-stat h4 {
-            color: #4a5568;
-            margin-bottom: 5px;
-            font-size: 0.9rem;
-        }
-
-        .error-stat .value {
-            font-size: 1.5rem;
+            background: rgba(102, 126, 234, 0.1);
             font-weight: 600;
             color: #667eea;
         }
 
+        .error-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .error-stat {
+            background: rgba(102, 126, 234, 0.05);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .error-stat:hover {
+            border-color: rgba(102, 126, 234, 0.5);
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .error-stat h4 {
+            color: #a5b4fc;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .error-stat .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
         .error-stat .unit {
             font-size: 0.8rem;
-            color: #718096;
+            color: rgba(176, 190, 197, 0.8);
+            margin-top: 4px;
         }
 
         .loading {
             display: none;
             text-align: center;
-            padding: 20px;
+            padding: 30px;
         }
 
         .loading.show {
@@ -386,13 +777,14 @@
         }
 
         .spinner {
-            border: 4px solid #f3f3f3;
+            border: 4px solid rgba(102, 126, 234, 0.2);
             border-top: 4px solid #667eea;
+            border-right: 4px solid #764ba2;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+            margin: 0 auto 15px;
         }
 
         @keyframes spin {
@@ -401,39 +793,95 @@
         }
 
         .model-info {
-            background: #e6fffa;
-            border: 1px solid #81e6d9;
-            border-radius: 8px;
-            padding: 15px;
+            background: rgba(75, 215, 255, 0.08);
+            border: 1px solid rgba(75, 215, 255, 0.28);
+            border-radius: 12px;
+            padding: 18px;
             margin-bottom: 20px;
+            backdrop-filter: blur(10px);
         }
 
         .model-info h3 {
-            color: #234e52;
+            color: #7be3ff;
             margin-bottom: 10px;
             font-size: 1.1rem;
+            font-weight: 600;
         }
 
         .model-info p {
             margin-bottom: 5px;
-            color: #234e52;
-        }
-
-        .model-info strong {
-            color: #0f2027;
+            color: rgba(232, 234, 237, 0.85);
+            font-size: 0.95rem;
         }
 
         @media (max-width: 768px) {
             .main-content {
                 grid-template-columns: 1fr;
             }
+
+            .main-content.panel-collapsed {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-panel {
+                position: static;
+            }
+
+            .panel-toggle-btn {
+                display: none;
+            }
+
+            .main-content.panel-collapsed .control-panel {
+                width: 100%;
+                padding: 20px;
+                cursor: default;
+            }
+
+            .main-content.panel-collapsed .panel-head {
+                justify-content: space-between;
+                min-height: auto;
+                margin-bottom: 18px;
+            }
+
+            .main-content.panel-collapsed .control-panel h2 {
+                writing-mode: horizontal-tb;
+                transform: none;
+                border-bottom: 1px solid rgba(75, 215, 255, 0.38);
+                padding-bottom: 12px;
+                letter-spacing: 0.04em;
+                font-size: 1.55rem;
+            }
+
+            .main-content.panel-collapsed .panel-content {
+                opacity: 1;
+                max-height: none;
+                pointer-events: auto;
+                transform: none;
+            }
+
+            .rail-decor {
+                display: none !important;
+            }
             
             .container {
-                padding: 10px;
+                padding: 16px;
+            }
+            
+            .header {
+                padding: 30px 20px;
             }
             
             .header h1 {
                 font-size: 2rem;
+            }
+            
+            .header p {
+                font-size: 1rem;
+            }
+
+            .chart-container,
+            .control-panel {
+                padding: 20px;
             }
         }
     </style>
@@ -447,7 +895,27 @@
 
         <div class="main-content">
             <div class="control-panel">
-                <h2>🎯 Control Panel</h2>
+                <div class="panel-head">
+                    <h2>🎯 Control Panel</h2>
+                    <button id="panel-toggle-btn" class="panel-toggle-btn" type="button" aria-label="Toggle control panel" aria-expanded="true" title="Collapse panel">◀</button>
+                </div>
+
+                <div class="rail-decor" aria-hidden="true">
+                    <div class="rail-guides">
+                        <div class="rail-scan"></div>
+                    </div>
+                    <div class="rail-markers">
+                        <span class="rail-marker">01</span>
+                        <span class="rail-marker-dot"></span>
+                        <span class="rail-marker">02</span>
+                        <span class="rail-marker-dot"></span>
+                        <span class="rail-marker">03</span>
+                        <span class="rail-marker-dot"></span>
+                        <span class="rail-marker">04</span>
+                    </div>
+                </div>
+
+                <div class="panel-content">
 
                 <!-- Model Selection -->
                 <div class="form-group">
@@ -490,6 +958,57 @@
                     <small class="form-text">Select K-line data file from data directory</small>
                 </div>
 
+                <div class="form-group" style="margin-top: 10px;">
+                    <label for="stock-select">Stock Presets:</label>
+                    <select id="stock-select">
+                        <option value="">Custom...</option>
+                        <option value="RY.TO" selected>RY.TO - Royal Bank of Canada</option>
+                        <option value="TD.TO">TD.TO - Toronto-Dominion Bank</option>
+                        <option value="BNS.TO">BNS.TO - Bank of Nova Scotia</option>
+                        <option value="AAPL">AAPL - Apple</option>
+                        <option value="MSFT">MSFT - Microsoft</option>
+                        <option value="NVDA">NVDA - NVIDIA</option>
+                        <option value="SPY">SPY - S&P 500 ETF</option>
+                        <option value="BTC-USD">BTC-USD - Bitcoin</option>
+                        <option value="ETH-USD">ETH-USD - Ethereum</option>
+                    </select>
+                    <small class="form-text">Pick a known ticker or choose Custom and type your own symbol.</small>
+                </div>
+
+                <div class="form-group" style="margin-top: 10px;">
+                    <label for="live-symbol">Symbol:</label>
+                    <input id="live-symbol" type="text" value="RY.TO" placeholder="e.g. RY.TO, AAPL, BTC-USD">
+                    <small class="form-text">Use exchange suffix when needed (e.g. .TO for TSX, .HK for HKEX)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="live-interval">Interval:</label>
+                    <select id="live-interval">
+                        <option value="5m" selected>5m</option>
+                        <option value="15m">15m</option>
+                        <option value="30m">30m</option>
+                        <option value="1h">1h (hourly)</option>
+                        <option value="1d">1d (daily)</option>
+                        <option value="5d">5d (weekly)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="range-group">
+                    <label for="live-range">Range:</label>
+                    <select id="live-range">
+                        <option value="7d" selected>7d</option>
+                        <option value="1mo">1mo</option>
+                        <option value="3mo">3mo</option>
+                        <option value="6mo">6mo</option>
+                        <option value="1y">1y</option>
+                    </select>
+                    <small class="form-text">Yahoo range controls how much historical data is fetched.</small>
+                </div>
+
+                <button id="fetch-live-btn" class="btn btn-warning">
+                    🌐 Fetch Live Market Data
+                </button>
+
                 <button id="load-data-btn" class="btn btn-secondary">
                     📁 Load Data
                 </button>
@@ -499,6 +1018,7 @@
                     <h3>📊 Data Information</h3>
                     <p><strong>Rows:</strong> <span id="data-rows">-</span></p>
                     <p><strong>Columns:</strong> <span id="data-cols">-</span></p>
+                    <p><strong>Symbol:</strong> <span id="data-symbol">-</span></p>
                     <p><strong>Time Range:</strong> <span id="data-time-range">-</span></p>
                     <p><strong>Price Range:</strong> <span id="data-price-range">-</span></p>
                     <p><strong>Time Frequency:</strong> <span id="data-timeframe">-</span></p>
@@ -507,9 +1027,23 @@
 
                 <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
 
-                <!-- Time Window Selector -->
-                <div class="time-window-container">
-                    <h3>⏰ Time Window Selection</h3>
+                <!-- Prediction Mode Toggle -->
+                <div class="form-group">
+                    <label>Prediction Mode:</label>
+                    <div style="display:flex; gap:8px; margin-top:6px;">
+                        <button id="mode-future-btn" class="btn btn-success" style="flex:1; padding:8px;" onclick="setPredictMode('future')">
+                            🔮 Future Forecast
+                        </button>
+                        <button id="mode-backtest-btn" class="btn btn-secondary" style="flex:1; padding:8px; opacity:0.5;" onclick="setPredictMode('backtest')">
+                            🔁 Backtest
+                        </button>
+                    </div>
+                    <small class="form-text" id="mode-hint">Predict the next 120 candles beyond your latest data.</small>
+                </div>
+
+                <!-- Time Window Selector (backtest only) -->
+                <div class="time-window-container" id="time-window-section" style="display:none;">
+                    <h3>⏰ Backtest Window</h3>
                     <div class="time-window-info">
                         <span id="window-start">Start: --</span>
                         <span id="window-end">End: --</span>
@@ -528,20 +1062,20 @@
                         </div>
                     </div>
                     
-                    <small class="form-text">Drag slider to select time window position for 520 data points, green area represents fixed 400+120 data point range</small>
+                    <small class="form-text">Drag slider to select a historical window to test the model against known outcomes.</small>
                 </div>
 
                 <!-- Prediction Parameters -->
                 <div class="form-group">
                     <label for="lookback">Lookback Window Size:</label>
-                    <input type="number" id="lookback" value="400" readonly>
-                    <small class="form-text">Fixed at 400 data points</small>
+                    <input type="number" id="lookback" value="120" min="20" step="10">
+                    <small class="form-text">Historical candles to use as context (recommended: 60-240)</small>
                 </div>
 
                 <div class="form-group">
                     <label for="pred-len">Prediction Length:</label>
-                    <input type="number" id="pred-len" value="120" readonly>
-                    <small class="form-text">Fixed at 120 data points</small>
+                    <input type="number" id="pred-len" value="7" min="1" max="240" step="1">
+                    <small class="form-text">Future candles to generate (e.g. set 7 for next 7 days on 1d interval)</small>
                 </div>
 
                 <!-- Prediction Quality Parameters -->
@@ -574,9 +1108,10 @@
                     <div class="spinner"></div>
                     <p>Processing, please wait...</p>
                 </div>
+                </div>
             </div>
 
-            <div class="chart-container">
+            <div class="chart-container" id="prediction-results">
                 <h2>📈 Prediction Results Chart</h2>
                 <div id="chart"></div>
                 
@@ -639,6 +1174,26 @@
         let currentDataInfo = null;
         let availableModels = [];
         let modelLoaded = false;
+        let predictMode = 'future';  // 'future' | 'backtest'
+
+        function setPredictMode(mode) {
+            predictMode = mode;
+            const futureBtn = document.getElementById('mode-future-btn');
+            const backtestBtn = document.getElementById('mode-backtest-btn');
+            const windowSection = document.getElementById('time-window-section');
+            const hint = document.getElementById('mode-hint');
+            if (mode === 'future') {
+                futureBtn.style.opacity = '1';
+                backtestBtn.style.opacity = '0.5';
+                windowSection.style.display = 'none';
+                hint.textContent = 'Predict the next 120 candles beyond your latest data.';
+            } else {
+                futureBtn.style.opacity = '0.5';
+                backtestBtn.style.opacity = '1';
+                windowSection.style.display = 'block';
+                hint.textContent = 'Test the model on a historical window and compare against known actual data.';
+            }
+        }
 
         // Initialize after page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -762,7 +1317,8 @@
                 dataFiles.forEach(file => {
                     const option = document.createElement('option');
                     option.value = file.path;
-                    option.textContent = `${file.name} (${file.size})`;
+                    const symbolLabel = file.symbol ? ` | ${file.symbol}` : '';
+                    option.textContent = `${file.name}${symbolLabel} (${file.size})`;
                     dataFileSelect.appendChild(option);
                 });
                 
@@ -814,11 +1370,48 @@
             }
         }
 
+        // Fetch live market bars from chosen source and auto-load file
+        async function fetchLiveData() {
+            const symbol = document.getElementById('live-symbol').value.trim();
+            const interval = document.getElementById('live-interval').value;
+            const range = document.getElementById('live-range').value;
+
+            if (!symbol) {
+                showStatus('error', 'Please input a symbol (e.g. RY.TO)');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                document.getElementById('fetch-live-btn').disabled = true;
+
+                const payload = { source: 'yahoo', symbol, interval, range };
+                const endpoint = '/api/fetch-market';
+                const response = await axios.post(endpoint, payload);
+
+                if (response.data.success) {
+                    await loadDataFiles();
+                    document.getElementById('data-file-select').value = response.data.file_path;
+                    await loadData();
+                    showStatus('success', response.data.message);
+                } else {
+                    showStatus('error', response.data.error || 'Failed to fetch live data');
+                }
+            } catch (error) {
+                console.error('❌ Live data fetch failed:', error);
+                showStatus('error', `Live fetch failed: ${error.response?.data?.error || error.message}`);
+            } finally {
+                showLoading(false);
+                document.getElementById('fetch-live-btn').disabled = false;
+            }
+        }
+
         // Display data information
         function showDataInfo(dataInfo) {
             document.getElementById('data-info').style.display = 'block';
             document.getElementById('data-rows').textContent = dataInfo.rows;
             document.getElementById('data-cols').textContent = dataInfo.columns.length;
+            document.getElementById('data-symbol').textContent = dataInfo.symbol || 'Unknown';
             document.getElementById('data-time-range').textContent = `${dataInfo.start_date} to ${dataInfo.end_date}`;
             document.getElementById('data-price-range').textContent = `${dataInfo.price_range.min.toFixed(4)} - ${dataInfo.price_range.max.toFixed(4)}`;
             document.getElementById('data-timeframe').textContent = dataInfo.timeframe;
@@ -908,8 +1501,9 @@
             const startHandle = document.getElementById('start-handle');
             const selection = document.getElementById('slider-selection');
             
-            // Fixed window size of 520 data points
-            const windowSize = 520;
+            const lookback = parseInt(document.getElementById('lookback').value) || 120;
+            const predLen = parseInt(document.getElementById('pred-len').value) || 7;
+            const windowSize = lookback + predLen;
             const totalRows = sliderData ? sliderData.totalRows : 1000;
             const windowPercentage = windowSize / totalRows;
             
@@ -932,8 +1526,9 @@
             const endHandle = document.getElementById('end-handle');
             const selection = document.getElementById('slider-selection');
             
-            // Fixed window size of 520 data points
-            const windowSize = 520;
+            const lookback = parseInt(document.getElementById('lookback').value) || 120;
+            const predLen = parseInt(document.getElementById('pred-len').value) || 7;
+            const windowSize = lookback + predLen;
             const totalRows = sliderData ? sliderData.totalRows : 1000;
             const windowPercentage = windowSize / totalRows;
             
@@ -973,22 +1568,22 @@
             document.getElementById('window-start').textContent = `Start: ${startDate.toLocaleDateString()}`;
             document.getElementById('window-end').textContent = `End: ${endDate.toLocaleDateString()}`;
             
-            // Display fixed window size
-            document.getElementById('window-size').textContent = `Window Size: 400 + 120 = 520 data points (fixed)`;
-            
-            // Input field values remain fixed
-            document.getElementById('lookback').value = 400;
-            document.getElementById('pred-len').value = 120;
+            const lookback = parseInt(document.getElementById('lookback').value) || 120;
+            const predLen = parseInt(document.getElementById('pred-len').value) || 7;
+            const windowSize = lookback + predLen;
+            document.getElementById('window-size').textContent = `Window Size: ${lookback} + ${predLen} = ${windowSize} data points`;
         }
 
         // Update slider based on input fields
         function updateSliderFromInputs() {
             if (!sliderData) return;
             
-            // Fixed window size: 400 + 120 = 520 data points
-            const lookback = 400;
-            const predLen = 120;
-            const windowSize = lookback + predLen; // Fixed at 520
+            const lookback = Math.max(20, parseInt(document.getElementById('lookback').value) || 120);
+            const predLen = Math.max(1, parseInt(document.getElementById('pred-len').value) || 7);
+            const windowSize = lookback + predLen;
+
+            document.getElementById('lookback').value = lookback;
+            document.getElementById('pred-len').value = predLen;
             
             // Calculate slider position
             const totalRows = sliderData.totalRows;
@@ -999,13 +1594,12 @@
                 return;
             }
             
-            // Calculate slider position (default select first half of data)
-            const startPercentage = 0.1; // Start from 10%
-            const endPercentage = startPercentage + (windowSize / totalRows);
+            // Calculate slider position
+            const windowPercentage = windowSize / totalRows;
+            const startPercentage = Math.max(0, Math.min(0.1, 1 - windowPercentage));
             
             // Update handle positions
             updateStartHandle(startPercentage);
-            updateEndHandle(endPercentage);
             
             // Update display information
             updateSliderFromHandles();
@@ -1046,21 +1640,26 @@
                 
                 const lookback = parseInt(document.getElementById('lookback').value);
                 const predLen = parseInt(document.getElementById('pred-len').value);
-                
-                // Get selected time range from time window slider
-                const startHandle = document.getElementById('start-handle');
-                const startPercentage = parseFloat(startHandle.style.left) / 100;
-                
-                if (!sliderData) {
-                    showStatus('error', 'Time window slider not initialized');
+
+                if (!Number.isInteger(lookback) || lookback < 20) {
+                    showStatus('error', 'Lookback must be an integer >= 20');
                     return;
                 }
-                
-                // Calculate selected time range
-                const totalTime = sliderData.endDate.getTime() - sliderData.startDate.getTime();
-                const startTime = sliderData.startDate.getTime() + (totalTime * startPercentage);
-                const startDate = new Date(startTime);
-                
+                if (!Number.isInteger(predLen) || predLen < 1) {
+                    showStatus('error', 'Prediction length must be an integer >= 1');
+                    return;
+                }
+
+                if (currentDataInfo && currentDataInfo.rows) {
+                    const totalRows = currentDataInfo.rows;
+                    if (lookback >= totalRows) {
+                        const adjustedLookback = Math.max(20, totalRows - 1);
+                        document.getElementById('lookback').value = adjustedLookback;
+                        showStatus('warning', `Lookback reduced to ${adjustedLookback} because file has ${totalRows} rows.`);
+                        return;
+                    }
+                }
+
                 // Get prediction quality parameters
                 const temperature = parseFloat(document.getElementById('temperature').value);
                 const topP = parseFloat(document.getElementById('top-p').value);
@@ -1070,11 +1669,23 @@
                     file_path: currentDataFile,
                     lookback: lookback,
                     pred_len: predLen,
-                    start_date: startDate.toISOString().slice(0, 16), // Format as YYYY-MM-DDTHH:MM
                     temperature: temperature,
                     top_p: topP,
-                    sample_count: sampleCount
+                    sample_count: sampleCount,
+                    predict_mode: predictMode
                 };
+
+                // Only send start_date in backtest mode
+                if (predictMode === 'backtest') {
+                    if (!sliderData) {
+                        showStatus('error', 'Time window slider not initialized');
+                        return;
+                    }
+                    const totalTime = sliderData.endDate.getTime() - sliderData.startDate.getTime();
+                    const startPercentage = parseFloat(document.getElementById('start-handle').style.left) / 100;
+                    const startTime = sliderData.startDate.getTime() + (totalTime * startPercentage);
+                    predictionParams.start_date = new Date(startTime).toISOString().slice(0, 16);
+                }
                 
                 console.log('🚀 Starting prediction, parameters:', predictionParams);
                 
@@ -1083,7 +1694,11 @@
                 if (response.data.success) {
                     // Display prediction results
                     displayPredictionResult(response.data);
-                    showStatus('success', response.data.message);
+                    if (response.data.warning) {
+                        showStatus('warning', `${response.data.message} | ${response.data.warning}`);
+                    } else {
+                        showStatus('success', response.data.message);
+                    }
                 } else {
                     showStatus('error', response.data.error);
                 }
@@ -1098,9 +1713,23 @@
 
         // Display prediction results
         function displayPredictionResult(result) {
-            // Display chart
-            const chartData = JSON.parse(result.chart);
-            Plotly.newPlot('chart', chartData.data, chartData.layout);
+            // Display chart (with robust fallback to avoid blank chart area)
+            try {
+                if (typeof Plotly === 'undefined') {
+                    throw new Error('Plotly is not loaded (CDN may be blocked).');
+                }
+
+                const chartData = typeof result.chart === 'string' ? JSON.parse(result.chart) : result.chart;
+                if (!chartData || !chartData.data || !chartData.layout) {
+                    throw new Error('Invalid chart payload returned by backend.');
+                }
+
+                Plotly.react('chart', chartData.data, chartData.layout, { responsive: true });
+            } catch (err) {
+                console.error('Chart render failed, using fallback line chart:', err);
+                renderFallbackChart(result);
+                showStatus('warning', `Primary chart render failed: ${err.message}. Showing fallback chart.`);
+            }
             
             // Display comparison analysis (if actual data exists)
             if (result.has_comparison) {
@@ -1108,6 +1737,65 @@
             } else {
                 document.getElementById('comparison-section').style.display = 'none';
             }
+
+            // Bring prediction chart into view after result is rendered.
+            scrollToPredictionResults();
+        }
+
+        function scrollToPredictionResults() {
+            const resultSection = document.getElementById('prediction-results');
+            if (!resultSection) return;
+
+            requestAnimationFrame(() => {
+                resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
+
+        // Fallback chart: simple close-price lines from prediction/actual arrays
+        function renderFallbackChart(result) {
+            const pred = result.prediction_results || [];
+            const actual = result.actual_data || [];
+
+            if (typeof Plotly === 'undefined') {
+                const chartDiv = document.getElementById('chart');
+                chartDiv.innerHTML = '<div style="padding:16px;color:#742a2a;background:#fed7d7;border:1px solid #feb2b2;border-radius:8px;">Chart library unavailable. Please refresh and check network access to Plotly CDN.</div>';
+                return;
+            }
+
+            const predX = pred.map(p => p.timestamp);
+            const predY = pred.map(p => p.close);
+            const actualX = actual.map(a => a.timestamp);
+            const actualY = actual.map(a => a.close);
+
+            const traces = [
+                {
+                    x: predX,
+                    y: predY,
+                    mode: 'lines',
+                    name: 'Predicted Close',
+                    line: { color: '#dd6b20', width: 2 }
+                }
+            ];
+
+            if (actualY.length > 0) {
+                traces.push({
+                    x: actualX,
+                    y: actualY,
+                    mode: 'lines',
+                    name: 'Actual Close',
+                    line: { color: '#2b6cb0', width: 2 }
+                });
+            }
+
+            const layout = {
+                title: 'Fallback Trend Chart (Close)',
+                xaxis: { title: 'Time' },
+                yaxis: { title: 'Close Price' },
+                template: 'plotly_white',
+                height: 600
+            };
+
+            Plotly.react('chart', traces, layout, { responsive: true });
         }
 
         // Display comparison analysis
@@ -1188,11 +1876,32 @@
 
         // Set up event listeners
         function setupEventListeners() {
+            const panelToggleBtn = document.getElementById('panel-toggle-btn');
+            if (panelToggleBtn) {
+                panelToggleBtn.addEventListener('click', function() {
+                    const mainContent = document.querySelector('.main-content');
+                    const isCollapsed = mainContent.classList.toggle('panel-collapsed');
+                    this.textContent = isCollapsed ? '▶' : '◀';
+                    this.title = isCollapsed ? 'Expand panel' : 'Collapse panel';
+                    this.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+                });
+            }
+
             // Load model button
             document.getElementById('load-model-btn').addEventListener('click', loadModel);
             
             // Load data button
             document.getElementById('load-data-btn').addEventListener('click', loadData);
+
+            // Fetch live data button
+            document.getElementById('fetch-live-btn').addEventListener('click', fetchLiveData);
+
+            // Stock preset selector -> live symbol input
+            document.getElementById('stock-select').addEventListener('change', function() {
+                if (this.value) {
+                    document.getElementById('live-symbol').value = this.value;
+                }
+            });
             
             // Prediction button
             document.getElementById('predict-btn').addEventListener('click', startPrediction);
