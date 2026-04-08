@@ -306,6 +306,13 @@ def save_prediction_results(file_path, prediction_type, prediction_results, actu
 
 def create_prediction_chart(df, pred_df, lookback, pred_len, actual_df=None, historical_start_idx=0, future_mode=False):
     """Create prediction chart"""
+    historical_up = '#4BD7FF'
+    historical_down = '#2F7BFF'
+    predicted_up = '#8B5CF6'
+    predicted_down = '#EC4899'
+    actual_up = '#F59E0B'
+    actual_down = '#F97316'
+
     if future_mode:
         # Future mode: always use the last `lookback` rows as historical context
         historical_df = df.tail(lookback).copy()
@@ -319,6 +326,26 @@ def create_prediction_chart(df, pred_df, lookback, pred_len, actual_df=None, his
     
     # Create chart
     fig = go.Figure()
+
+    def add_gradient_band(x_values, colors, opacities):
+        if x_values is None or len(x_values) < 2:
+            return
+
+        segments = len(colors)
+        for index, color in enumerate(colors):
+            start_idx = int(index * (len(x_values) - 1) / segments)
+            end_idx = int((index + 1) * (len(x_values) - 1) / segments)
+            if end_idx <= start_idx:
+                continue
+
+            fig.add_vrect(
+                x0=x_values[start_idx],
+                x1=x_values[end_idx],
+                fillcolor=color,
+                opacity=opacities[index],
+                line_width=0,
+                layer='below'
+            )
     
     # Add historical data (candlestick chart)
     fig.add_trace(go.Candlestick(
@@ -327,10 +354,19 @@ def create_prediction_chart(df, pred_df, lookback, pred_len, actual_df=None, his
         high=historical_df['high'],
         low=historical_df['low'],
         close=historical_df['close'],
-        name='Historical Data (400 data points)',
-        increasing_line_color='#26A69A',
-        decreasing_line_color='#EF5350'
+        name=f'Historical Data ({len(historical_df)} data points)',
+        increasing_line_color=historical_up,
+        decreasing_line_color=historical_down,
+        increasing_fillcolor='rgba(75, 215, 255, 0.55)',
+        decreasing_fillcolor='rgba(47, 123, 255, 0.42)'
     ))
+
+    historical_x = historical_df['timestamps'].tolist() if 'timestamps' in historical_df.columns else list(historical_df.index)
+    add_gradient_band(
+        historical_x,
+        ['rgba(37, 99, 235, 1)', 'rgba(75, 215, 255, 1)', 'rgba(14, 165, 233, 1)'],
+        [0.05, 0.08, 0.06]
+    )
     
     # Add prediction data (candlestick chart)
     if pred_df is not None and len(pred_df) > 0:
@@ -355,10 +391,18 @@ def create_prediction_chart(df, pred_df, lookback, pred_len, actual_df=None, his
             high=pred_df['high'],
             low=pred_df['low'],
             close=pred_df['close'],
-            name='Prediction Data (120 data points)',
-            increasing_line_color='#66BB6A',
-            decreasing_line_color='#FF7043'
+            name=f'Prediction Data ({len(pred_df)} data points)',
+            increasing_line_color=predicted_up,
+            decreasing_line_color=predicted_down,
+            increasing_fillcolor='rgba(139, 92, 246, 0.52)',
+            decreasing_fillcolor='rgba(236, 72, 153, 0.42)'
         ))
+
+        add_gradient_band(
+            list(pred_timestamps),
+            ['rgba(91, 93, 252, 1)', 'rgba(139, 92, 246, 1)', 'rgba(236, 72, 153, 1)'],
+            [0.06, 0.1, 0.08]
+        )
     
     # Add actual data for comparison (if exists)
     if actual_df is not None and len(actual_df) > 0:
@@ -388,9 +432,11 @@ def create_prediction_chart(df, pred_df, lookback, pred_len, actual_df=None, his
             high=actual_df['high'],
             low=actual_df['low'],
             close=actual_df['close'],
-            name='Actual Data (120 data points)',
-            increasing_line_color='#FF9800',
-            decreasing_line_color='#F44336'
+            name=f'Actual Data ({len(actual_df)} data points)',
+            increasing_line_color=actual_up,
+            decreasing_line_color=actual_down,
+            increasing_fillcolor='rgba(245, 158, 11, 0.45)',
+            decreasing_fillcolor='rgba(249, 115, 22, 0.35)'
         ))
     
     # Update layout
@@ -403,9 +449,18 @@ def create_prediction_chart(df, pred_df, lookback, pred_len, actual_df=None, his
         title=chart_title,
         xaxis_title='Time',
         yaxis_title='Price',
-        template='plotly_white',
+        template='plotly_dark',
         height=600,
-        showlegend=True
+        showlegend=True,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(3, 17, 31, 0.18)',
+        legend=dict(
+            bgcolor='rgba(7, 22, 38, 0.72)',
+            bordercolor='rgba(75, 215, 255, 0.18)',
+            borderwidth=1,
+            font=dict(color='#DDF5FF')
+        ),
+        font=dict(color='#DDF5FF')
     )
     
     # Ensure x-axis time continuity

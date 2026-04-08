@@ -76,14 +76,79 @@
         }
 
         .header {
-            text-align: center;
             margin-bottom: 34px;
-            background: linear-gradient(120deg, rgba(11, 39, 65, 0.86), rgba(9, 31, 51, 0.62));
+            background:
+                radial-gradient(circle at 78% 28%, rgba(93, 93, 252, 0.16), transparent 20%),
+                radial-gradient(circle at 22% 78%, rgba(75, 215, 255, 0.12), transparent 26%),
+                linear-gradient(120deg, rgba(11, 39, 65, 0.88), rgba(9, 31, 51, 0.72));
             backdrop-filter: blur(12px);
-            padding: 36px 24px;
+            padding: 36px 30px;
             border-radius: 18px;
             border: 1px solid var(--line);
             box-shadow: inset 0 0 0 1px rgba(75, 215, 255, 0.14), 0 18px 42px rgba(0, 0, 0, 0.35);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before,
+        .header::after {
+            content: '';
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .header::before {
+            inset: 18px;
+            border: 1px solid rgba(75, 215, 255, 0.12);
+            border-radius: 14px;
+        }
+
+        .header::after {
+            width: 180px;
+            height: 180px;
+            right: -40px;
+            bottom: -54px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(75, 215, 255, 0.24), transparent 70%);
+            filter: blur(8px);
+        }
+
+        .hero-topline {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(75, 215, 255, 0.24);
+            background: rgba(75, 215, 255, 0.08);
+            color: #d8f1ff;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .hero-topline::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--cyan);
+            box-shadow: 0 0 12px rgba(75, 215, 255, 0.8);
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.8fr);
+            gap: 24px;
+            align-items: center;
+        }
+
+        .hero-copy {
+            position: relative;
+            z-index: 1;
         }
 
         .header h1 {
@@ -101,10 +166,156 @@
         }
 
         .header p {
+            max-width: 760px;
             font-size: 0.98rem;
             color: var(--muted);
             font-weight: 500;
             letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 22px;
+        }
+
+        .hero-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .hero-stat {
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: linear-gradient(140deg, rgba(75, 215, 255, 0.08), rgba(93, 93, 252, 0.08));
+            border: 1px solid rgba(75, 215, 255, 0.16);
+            text-align: left;
+        }
+
+        .hero-stat-label {
+            display: block;
+            color: rgba(180, 215, 237, 0.76);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .hero-stat-value {
+            display: block;
+            color: #f2fbff;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.55rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        .hero-visual {
+            position: relative;
+            min-height: 250px;
+            display: grid;
+            place-items: center;
+        }
+
+        .hero-visual::before,
+        .hero-visual::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            border: 1px solid rgba(75, 215, 255, 0.2);
+        }
+
+        .hero-visual::before {
+            width: 250px;
+            height: 250px;
+        }
+
+        .hero-visual::after {
+            width: 180px;
+            height: 180px;
+            border-color: rgba(93, 93, 252, 0.28);
+        }
+
+        .hero-orbit {
+            position: absolute;
+            inset: 50%;
+            width: 220px;
+            height: 220px;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 1px solid rgba(75, 215, 255, 0.18);
+            animation: orbitSpin 18s linear infinite;
+        }
+
+        .hero-orbit::before,
+        .hero-orbit::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .hero-orbit::before {
+            width: 11px;
+            height: 11px;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--cyan);
+            box-shadow: 0 0 18px rgba(75, 215, 255, 0.9);
+        }
+
+        .hero-orbit::after {
+            inset: 26px;
+            border: 1px dashed rgba(75, 215, 255, 0.12);
+        }
+
+        @keyframes orbitSpin {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .hero-core {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            border-radius: 28px;
+            background:
+                radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.3), transparent 28%),
+                linear-gradient(145deg, rgba(75, 215, 255, 0.22), rgba(93, 93, 252, 0.2));
+            border: 1px solid rgba(75, 215, 255, 0.22);
+            box-shadow: inset 0 0 30px rgba(75, 215, 255, 0.08), 0 0 40px rgba(79, 140, 255, 0.16);
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+        }
+
+        .hero-core::before {
+            content: '';
+            position: absolute;
+            inset: 18px;
+            border-radius: 22px;
+            border: 1px solid rgba(75, 215, 255, 0.18);
+        }
+
+        .hero-core-label {
+            position: relative;
+            color: #effbff;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+
+        .hero-side-note {
+            position: absolute;
+            right: 12px;
+            bottom: 16px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(7, 26, 43, 0.72);
+            border: 1px solid rgba(75, 215, 255, 0.16);
+            color: #cbeaff;
+            font-size: 0.76rem;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
         }
 
@@ -150,6 +361,43 @@
 
         .panel-content {
             transition: opacity 0.25s ease, transform 0.25s ease, max-height 0.25s ease;
+        }
+
+        .control-section {
+            position: relative;
+            padding: 18px 18px 8px;
+            margin-bottom: 18px;
+            border-radius: 16px;
+            background: linear-gradient(145deg, rgba(75, 215, 255, 0.05), rgba(93, 93, 252, 0.04));
+            border: 1px solid rgba(75, 215, 255, 0.1);
+        }
+
+        .section-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+            color: #d8f1ff;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .section-label::before {
+            content: '';
+            width: 22px;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(75, 215, 255, 0.2), rgba(75, 215, 255, 0.9));
+            box-shadow: 0 0 10px rgba(75, 215, 255, 0.4);
+        }
+
+        .panel-divider {
+            height: 1px;
+            margin: 22px 0;
+            border: 0;
+            background: linear-gradient(90deg, transparent, rgba(75, 215, 255, 0.6), transparent);
         }
 
         .rail-decor {
@@ -350,6 +598,12 @@
             margin-bottom: 22px;
         }
 
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
         .form-group label {
             display: block;
             margin-bottom: 10px;
@@ -489,6 +743,46 @@
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
         }
 
+        .segmented-control {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            padding: 7px;
+            border-radius: 16px;
+            background: rgba(5, 20, 34, 0.72);
+            border: 1px solid rgba(75, 215, 255, 0.12);
+            box-shadow: inset 0 0 0 1px rgba(75, 215, 255, 0.06);
+        }
+
+        .segmented-option {
+            min-width: 0;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(75, 215, 255, 0.1);
+            background: transparent;
+            color: #b8d8ee;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.98rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .segmented-option:hover {
+            color: #e6f8ff;
+            border-color: rgba(75, 215, 255, 0.24);
+            background: rgba(75, 215, 255, 0.06);
+        }
+
+        .segmented-option.active {
+            color: #f8feff;
+            background: linear-gradient(110deg, rgba(37, 140, 255, 0.48), rgba(98, 95, 255, 0.5));
+            border-color: rgba(110, 187, 255, 0.42);
+            box-shadow: 0 10px 24px rgba(79, 140, 255, 0.2), inset 0 0 0 1px rgba(226, 241, 255, 0.16);
+        }
+
         .status {
             padding: 16px 20px;
             border-radius: 12px;
@@ -545,6 +839,32 @@
             padding: 35px;
             box-shadow: inset 0 0 0 1px rgba(75, 215, 255, 0.14), 0 20px 44px rgba(0, 0, 0, 0.42);
             transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-container::before,
+        .chart-container::after {
+            content: '';
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            border-color: rgba(75, 215, 255, 0.72);
+            pointer-events: none;
+        }
+
+        .chart-container::before {
+            top: 16px;
+            left: 16px;
+            border-top: 2px solid;
+            border-left: 2px solid;
+        }
+
+        .chart-container::after {
+            right: 16px;
+            bottom: 16px;
+            border-right: 2px solid;
+            border-bottom: 2px solid;
         }
 
         .chart-container:hover {
@@ -552,16 +872,84 @@
             box-shadow: inset 0 0 0 1px rgba(75, 215, 255, 0.2), 0 24px 52px rgba(0, 0, 0, 0.47);
         }
 
-        .chart-container h2 {
+        .chart-topbar {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(75, 215, 255, 0.22);
+        }
+
+        .chart-title-wrap h2 {
             font-family: 'Rajdhani', sans-serif;
             color: #d2efff;
-            margin-bottom: 25px;
+            margin-bottom: 8px;
             font-size: 1.62rem;
-            border-bottom: 1px solid rgba(75, 215, 255, 0.38);
-            padding-bottom: 12px;
             font-weight: 700;
             letter-spacing: 0.05em;
             text-transform: uppercase;
+        }
+
+        .chart-subtitle {
+            color: rgba(186, 216, 236, 0.8);
+            font-size: 0.92rem;
+            letter-spacing: 0.04em;
+        }
+
+        .chart-chips {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 10px;
+            max-width: 48%;
+        }
+
+        .chart-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            border-radius: 999px;
+            background: rgba(75, 215, 255, 0.08);
+            border: 1px solid rgba(75, 215, 255, 0.16);
+            color: #d9f4ff;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .chart-chip.live::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #16f29b;
+            box-shadow: 0 0 12px rgba(22, 242, 155, 0.9);
+        }
+
+        .chart-surface {
+            position: relative;
+            padding: 18px;
+            border-radius: 18px;
+            background: linear-gradient(145deg, rgba(7, 23, 37, 0.74), rgba(8, 25, 42, 0.52));
+            border: 1px solid rgba(75, 215, 255, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(75, 215, 255, 0.06);
+        }
+
+        .chart-surface::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(75, 215, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(75, 215, 255, 0.025) 1px, transparent 1px);
+            background-size: 40px 40px;
         }
 
         #chart {
@@ -589,6 +977,16 @@
             margin-bottom: 8px;
             color: rgba(232, 234, 237, 0.85);
             font-size: 0.95rem;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px 18px;
+        }
+
+        .data-grid p {
+            margin-bottom: 0;
         }
 
         .data-info strong {
@@ -700,6 +1098,10 @@
             border-radius: 10px;
             padding: 16px;
             margin-bottom: 16px;
+        }
+
+        .comparison-info p + p {
+            margin-top: 8px;
         }
 
         .comparison-table {
@@ -815,6 +1217,29 @@
         }
 
         @media (max-width: 768px) {
+            .hero-grid,
+            .form-row,
+            .data-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-visual {
+                min-height: 200px;
+            }
+
+            .chart-topbar {
+                flex-direction: column;
+            }
+
+            .chart-chips {
+                max-width: 100%;
+                justify-content: flex-start;
+            }
+
             .main-content {
                 grid-template-columns: 1fr;
             }
@@ -889,8 +1314,34 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚀 Bsing's Financial WebUI</h1>
-            <p>AI-based financial K-line data prediction analysis platform | Powered by Kronos</p>
+            <div class="hero-grid">
+                <div class="hero-copy">
+                    <div class="hero-topline">Bsing Signal Console</div>
+                    <h1>🚀 Bsing's Financial WebUI</h1>
+                    <p>AI-based financial K-line data prediction analysis platform | Powered by Kronos</p>
+                    <div class="hero-summary">
+                        <div class="hero-stat">
+                            <span class="hero-stat-label">Inference Engine</span>
+                            <span class="hero-stat-value">Kronos</span>
+                        </div>
+                        <div class="hero-stat">
+                            <span class="hero-stat-label">Forecast Modes</span>
+                            <span class="hero-stat-value">Future + Backtest</span>
+                        </div>
+                        <div class="hero-stat">
+                            <span class="hero-stat-label">Source</span>
+                            <span class="hero-stat-value">Yahoo Live Feed</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-visual" aria-hidden="true">
+                    <div class="hero-orbit"></div>
+                    <div class="hero-core">
+                        <span class="hero-core-label">Forecast</span>
+                    </div>
+                    <div class="hero-side-note">Live Forecast Lab</div>
+                </div>
+            </div>
         </div>
 
         <div class="main-content">
@@ -916,6 +1367,8 @@
                 </div>
 
                 <div class="panel-content">
+                <div class="control-section">
+                    <div class="section-label">Model Interface</div>
 
                 <!-- Model Selection -->
                 <div class="form-group">
@@ -947,7 +1400,12 @@
                     🔄 Load Model
                 </button>
 
-                <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
+                </div>
+
+                <hr class="panel-divider">
+
+                <div class="control-section">
+                    <div class="section-label">Market Feed</div>
 
                 <!-- Data File Selection -->
                 <div class="form-group">
@@ -975,22 +1433,24 @@
                     <small class="form-text">Pick a known ticker or choose Custom and type your own symbol.</small>
                 </div>
 
-                <div class="form-group" style="margin-top: 10px;">
-                    <label for="live-symbol">Symbol:</label>
-                    <input id="live-symbol" type="text" value="RY.TO" placeholder="e.g. RY.TO, AAPL, BTC-USD">
-                    <small class="form-text">Use exchange suffix when needed (e.g. .TO for TSX, .HK for HKEX)</small>
-                </div>
+                <div class="form-row">
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label for="live-symbol">Symbol:</label>
+                        <input id="live-symbol" type="text" value="RY.TO" placeholder="e.g. RY.TO, AAPL, BTC-USD">
+                        <small class="form-text">Use exchange suffix when needed (e.g. .TO for TSX, .HK for HKEX)</small>
+                    </div>
 
-                <div class="form-group">
-                    <label for="live-interval">Interval:</label>
-                    <select id="live-interval">
-                        <option value="5m" selected>5m</option>
-                        <option value="15m">15m</option>
-                        <option value="30m">30m</option>
-                        <option value="1h">1h (hourly)</option>
-                        <option value="1d">1d (daily)</option>
-                        <option value="5d">5d (weekly)</option>
-                    </select>
+                    <div class="form-group">
+                        <label for="live-interval">Interval:</label>
+                        <select id="live-interval">
+                            <option value="5m" selected>5m</option>
+                            <option value="15m">15m</option>
+                            <option value="30m">30m</option>
+                            <option value="1h">1h (hourly)</option>
+                            <option value="1d">1d (daily)</option>
+                            <option value="5d">5d (weekly)</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="form-group" id="range-group">
@@ -1016,29 +1476,36 @@
                 <!-- Data Information Display -->
                 <div id="data-info" class="data-info" style="display: none;">
                     <h3>📊 Data Information</h3>
-                    <p><strong>Rows:</strong> <span id="data-rows">-</span></p>
-                    <p><strong>Columns:</strong> <span id="data-cols">-</span></p>
-                    <p><strong>Symbol:</strong> <span id="data-symbol">-</span></p>
-                    <p><strong>Time Range:</strong> <span id="data-time-range">-</span></p>
-                    <p><strong>Price Range:</strong> <span id="data-price-range">-</span></p>
-                    <p><strong>Time Frequency:</strong> <span id="data-timeframe">-</span></p>
-                    <p><strong>Prediction Columns:</strong> <span id="data-prediction-cols">-</span></p>
+                    <div class="data-grid">
+                        <p><strong>Rows:</strong> <span id="data-rows">-</span></p>
+                        <p><strong>Columns:</strong> <span id="data-cols">-</span></p>
+                        <p><strong>Symbol:</strong> <span id="data-symbol">-</span></p>
+                        <p><strong>Time Range:</strong> <span id="data-time-range">-</span></p>
+                        <p><strong>Price Range:</strong> <span id="data-price-range">-</span></p>
+                        <p><strong>Time Frequency:</strong> <span id="data-timeframe">-</span></p>
+                        <p style="grid-column: 1 / -1;"><strong>Prediction Columns:</strong> <span id="data-prediction-cols">-</span></p>
+                    </div>
                 </div>
 
-                <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
+                </div>
+
+                <hr class="panel-divider">
+
+                <div class="control-section">
+                    <div class="section-label">Forecast Controls</div>
 
                 <!-- Prediction Mode Toggle -->
                 <div class="form-group">
                     <label>Prediction Mode:</label>
-                    <div style="display:flex; gap:8px; margin-top:6px;">
-                        <button id="mode-future-btn" class="btn btn-success" style="flex:1; padding:8px;" onclick="setPredictMode('future')">
+                    <div class="segmented-control" style="margin-top:6px;">
+                        <button id="mode-future-btn" class="segmented-option active" type="button" onclick="setPredictMode('future')">
                             🔮 Future Forecast
                         </button>
-                        <button id="mode-backtest-btn" class="btn btn-secondary" style="flex:1; padding:8px; opacity:0.5;" onclick="setPredictMode('backtest')">
+                        <button id="mode-backtest-btn" class="segmented-option" type="button" onclick="setPredictMode('backtest')">
                             🔁 Backtest
                         </button>
                     </div>
-                    <small class="form-text" id="mode-hint">Predict the next 120 candles beyond your latest data.</small>
+                    <small class="form-text" id="mode-hint">Predict the next 7 candles beyond your latest data.</small>
                 </div>
 
                 <!-- Time Window Selector (backtest only) -->
@@ -1109,11 +1576,25 @@
                     <p>Processing, please wait...</p>
                 </div>
                 </div>
+                </div>
             </div>
 
             <div class="chart-container" id="prediction-results">
-                <h2>📈 Prediction Results Chart</h2>
-                <div id="chart"></div>
+                <div class="chart-topbar">
+                    <div class="chart-title-wrap">
+                        <h2>📈 Prediction Results Chart</h2>
+                        <div class="chart-subtitle">Forecast visualization, active horizon, and comparison telemetry</div>
+                    </div>
+                    <div class="chart-chips">
+                        <div class="chart-chip live">Live Forecast</div>
+                        <div class="chart-chip" id="chart-mode-chip">Future Mode</div>
+                        <div class="chart-chip" id="chart-symbol-chip">No Symbol</div>
+                        <div class="chart-chip" id="chart-horizon-chip">7 Candles</div>
+                    </div>
+                </div>
+                <div class="chart-surface">
+                    <div id="chart"></div>
+                </div>
                 
                 <!-- Comparison Analysis -->
                 <div id="comparison-section" class="comparison-section" style="display: none;">
@@ -1182,17 +1663,38 @@
             const backtestBtn = document.getElementById('mode-backtest-btn');
             const windowSection = document.getElementById('time-window-section');
             const hint = document.getElementById('mode-hint');
+            const modeChip = document.getElementById('chart-mode-chip');
             if (mode === 'future') {
-                futureBtn.style.opacity = '1';
-                backtestBtn.style.opacity = '0.5';
+                futureBtn.classList.add('active');
+                backtestBtn.classList.remove('active');
                 windowSection.style.display = 'none';
-                hint.textContent = 'Predict the next 120 candles beyond your latest data.';
+                hint.textContent = 'Predict the next candles beyond your latest data.';
+                if (modeChip) modeChip.textContent = 'Future Mode';
             } else {
-                futureBtn.style.opacity = '0.5';
-                backtestBtn.style.opacity = '1';
+                futureBtn.classList.remove('active');
+                backtestBtn.classList.add('active');
                 windowSection.style.display = 'block';
                 hint.textContent = 'Test the model on a historical window and compare against known actual data.';
+                if (modeChip) modeChip.textContent = 'Backtest Mode';
             }
+            updateChartHorizonChip();
+        }
+
+        function updateChartMetaChips() {
+            const symbolChip = document.getElementById('chart-symbol-chip');
+            if (symbolChip) {
+                const symbol = currentDataInfo?.symbol || document.getElementById('live-symbol')?.value?.trim() || 'No Symbol';
+                symbolChip.textContent = symbol;
+            }
+            updateChartHorizonChip();
+        }
+
+        function updateChartHorizonChip() {
+            const horizonChip = document.getElementById('chart-horizon-chip');
+            if (!horizonChip) return;
+
+            const predLen = parseInt(document.getElementById('pred-len')?.value, 10) || 7;
+            horizonChip.textContent = `${predLen} ${predLen === 1 ? 'Candle' : 'Candles'}`;
         }
 
         // Initialize after page loads
@@ -1217,6 +1719,7 @@
             initializeTimeSlider();
             
             console.log('✅ Application initialization completed');
+            updateChartMetaChips();
         }
 
         // Load available models
@@ -1350,6 +1853,7 @@
                     currentDataFile = filePath;
                     currentDataInfo = response.data.data_info;
                     showDataInfo(response.data.data_info);
+                    updateChartMetaChips();
                     showStatus('success', response.data.message);
                     
                     // Update prediction button status
@@ -1416,6 +1920,7 @@
             document.getElementById('data-price-range').textContent = `${dataInfo.price_range.min.toFixed(4)} - ${dataInfo.price_range.max.toFixed(4)}`;
             document.getElementById('data-timeframe').textContent = dataInfo.timeframe;
             document.getElementById('data-prediction-cols').textContent = dataInfo.prediction_columns.join(', ');
+            updateChartMetaChips();
             
             // Initialize time window slider
             initializeTimeWindowSlider(dataInfo);
@@ -1773,7 +2278,7 @@
                     y: predY,
                     mode: 'lines',
                     name: 'Predicted Close',
-                    line: { color: '#dd6b20', width: 2 }
+                    line: { color: '#8b5cf6', width: 3 }
                 }
             ];
 
@@ -1783,7 +2288,7 @@
                     y: actualY,
                     mode: 'lines',
                     name: 'Actual Close',
-                    line: { color: '#2b6cb0', width: 2 }
+                    line: { color: '#f59e0b', width: 3 }
                 });
             }
 
@@ -1900,8 +2405,11 @@
             document.getElementById('stock-select').addEventListener('change', function() {
                 if (this.value) {
                     document.getElementById('live-symbol').value = this.value;
+                    updateChartMetaChips();
                 }
             });
+
+            document.getElementById('live-symbol').addEventListener('input', updateChartMetaChips);
             
             // Prediction button
             document.getElementById('predict-btn').addEventListener('click', startPrediction);
@@ -1917,7 +2425,10 @@
             
             // Update slider when lookback window size changes
             document.getElementById('lookback').addEventListener('input', updateSliderFromInputs);
-            document.getElementById('pred-len').addEventListener('input', updateSliderFromInputs);
+            document.getElementById('pred-len').addEventListener('input', function() {
+                updateSliderFromInputs();
+                updateChartHorizonChip();
+            });
         }
 
         // Display status information
