@@ -28,7 +28,8 @@ def install_dependencies():
     """Install dependencies"""
     print("Installing dependencies...")
     try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+        requirements_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "requirements.txt")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", requirements_path])
         print("✅ Dependencies installation completed")
         return True
     except subprocess.CalledProcessError:
@@ -84,6 +85,7 @@ def main():
     except Exception as e:
         print(f"❌ Startup failed: {e}")
         print("Please check if port 7070 is occupied")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
