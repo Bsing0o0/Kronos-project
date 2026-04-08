@@ -957,6 +957,103 @@
             height: 600px;
         }
 
+        .horizon-section {
+            margin-top: 18px;
+            padding: 18px;
+            border-radius: 14px;
+            border: 1px solid rgba(75, 215, 255, 0.2);
+            background: linear-gradient(145deg, rgba(9, 28, 46, 0.74), rgba(6, 20, 34, 0.68));
+        }
+
+        .horizon-section h3 {
+            color: #8fdfff;
+            margin-bottom: 12px;
+            font-size: 1.02rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .horizon-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .horizon-card {
+            border-radius: 12px;
+            border: 1px solid rgba(75, 215, 255, 0.18);
+            background: rgba(75, 215, 255, 0.06);
+            padding: 12px;
+        }
+
+        .horizon-label {
+            color: #a9deff;
+            font-size: 0.8rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+        }
+
+        .horizon-value {
+            color: #f2fbff;
+            font-size: 1.3rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .horizon-time {
+            margin-top: 6px;
+            color: rgba(206, 230, 245, 0.78);
+            font-size: 0.82rem;
+        }
+
+        .horizon-unavailable {
+            color: rgba(245, 200, 106, 0.95);
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .snapshot-reco {
+            margin-top: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(75, 215, 255, 0.16);
+            background: rgba(75, 215, 255, 0.05);
+            padding: 10px 12px;
+        }
+
+        .snapshot-reco-title {
+            color: #a8e4ff;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .snapshot-reco-text {
+            color: rgba(214, 236, 249, 0.92);
+            font-size: 0.9rem;
+            line-height: 1.45;
+        }
+
+        .range-advisor {
+            margin-top: 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(75, 215, 255, 0.2);
+            background: rgba(75, 215, 255, 0.06);
+            padding: 10px 12px;
+            color: rgba(214, 236, 249, 0.92);
+            font-size: 0.88rem;
+            line-height: 1.45;
+        }
+
+        .range-advisor strong {
+            color: #aee4ff;
+        }
+
         .data-info {
             background: rgba(75, 215, 255, 0.07);
             border: 1px solid rgba(75, 215, 255, 0.28);
@@ -1308,6 +1405,10 @@
             .control-panel {
                 padding: 20px;
             }
+
+            .horizon-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -1463,6 +1564,9 @@
                         <option value="1y">1y</option>
                     </select>
                     <small class="form-text">Yahoo range controls how much historical data is fetched.</small>
+                    <div id="range-advisor" class="range-advisor">
+                        <strong>Range Advisor:</strong> Waiting for settings...
+                    </div>
                 </div>
 
                 <button id="fetch-live-btn" class="btn btn-warning">
@@ -1595,6 +1699,31 @@
                 <div class="chart-surface">
                     <div id="chart"></div>
                 </div>
+
+                <div id="horizon-section" class="horizon-section" style="display: none;">
+                    <h3>⏱ Forecast Snapshot</h3>
+                    <div class="horizon-grid">
+                        <div class="horizon-card">
+                            <div class="horizon-label">+1 Hour</div>
+                            <div class="horizon-value" id="horizon-1h-value">-</div>
+                            <div class="horizon-time" id="horizon-1h-time">-</div>
+                        </div>
+                        <div class="horizon-card">
+                            <div class="horizon-label">+1 Day</div>
+                            <div class="horizon-value" id="horizon-1d-value">-</div>
+                            <div class="horizon-time" id="horizon-1d-time">-</div>
+                        </div>
+                        <div class="horizon-card">
+                            <div class="horizon-label">+3 Days</div>
+                            <div class="horizon-value" id="horizon-3d-value">-</div>
+                            <div class="horizon-time" id="horizon-3d-time">-</div>
+                        </div>
+                    </div>
+                    <div class="snapshot-reco" id="snapshot-reco">
+                        <div class="snapshot-reco-title">Recommended Settings</div>
+                        <div class="snapshot-reco-text" id="snapshot-reco-text">Run a prediction to see snapshot-specific recommendations.</div>
+                    </div>
+                </div>
                 
                 <!-- Comparison Analysis -->
                 <div id="comparison-section" class="comparison-section" style="display: none;">
@@ -1678,6 +1807,7 @@
                 if (modeChip) modeChip.textContent = 'Backtest Mode';
             }
             updateChartHorizonChip();
+            updateRangeAdvisor();
         }
 
         function updateChartMetaChips() {
@@ -1720,6 +1850,7 @@
             
             console.log('✅ Application initialization completed');
             updateChartMetaChips();
+            updateRangeAdvisor();
         }
 
         // Load available models
@@ -1924,6 +2055,89 @@
             
             // Initialize time window slider
             initializeTimeWindowSlider(dataInfo);
+            updateRangeAdvisor();
+        }
+
+        function getTradingDaysForRange(rangeValue) {
+            const mapping = {
+                '7d': 5,
+                '1mo': 21,
+                '3mo': 63,
+                '6mo': 126,
+                '1y': 252
+            };
+            return mapping[rangeValue] || 21;
+        }
+
+        function estimateRowsForRange(rangeValue, intervalMinutes) {
+            const tradingDays = getTradingDaysForRange(rangeValue);
+            if (!intervalMinutes || intervalMinutes <= 0) {
+                return 0;
+            }
+
+            let barsPerDay;
+            if (intervalMinutes < 1440) {
+                barsPerDay = Math.max(1, Math.ceil(390 / intervalMinutes));
+            } else {
+                barsPerDay = 1 / (intervalMinutes / 1440);
+            }
+
+            return Math.max(1, Math.floor(tradingDays * barsPerDay));
+        }
+
+        function getRangeGuidance() {
+            const intervalMinutes = getIntervalMinutes();
+            if (!intervalMinutes) {
+                return null;
+            }
+
+            const rangeValue = document.getElementById('live-range')?.value || '7d';
+            const lookback = Math.max(20, parseInt(document.getElementById('lookback')?.value, 10) || 120);
+            const predLen = Math.max(1, parseInt(document.getElementById('pred-len')?.value, 10) || 7);
+
+            const requiredRows = predictMode === 'backtest' ? (lookback + predLen) : lookback;
+            const selectedEstimate = estimateRowsForRange(rangeValue, intervalMinutes);
+
+            const ranges = ['7d', '1mo', '3mo', '6mo', '1y'];
+            let recommendedRange = rangeValue;
+            for (const r of ranges) {
+                if (estimateRowsForRange(r, intervalMinutes) >= requiredRows) {
+                    recommendedRange = r;
+                    break;
+                }
+            }
+
+            return {
+                intervalMinutes,
+                rangeValue,
+                lookback,
+                predLen,
+                requiredRows,
+                selectedEstimate,
+                recommendedRange,
+                likelyShort: selectedEstimate < requiredRows
+            };
+        }
+
+        function updateRangeAdvisor() {
+            const advisor = document.getElementById('range-advisor');
+            if (!advisor) return;
+
+            const guidance = getRangeGuidance();
+            if (!guidance) {
+                advisor.innerHTML = '<strong>Range Advisor:</strong> Unable to infer interval yet.';
+                return;
+            }
+
+            const modeLabel = predictMode === 'backtest'
+                ? `backtest needs lookback + pred_len = ${guidance.requiredRows} rows`
+                : `future mode needs lookback = ${guidance.requiredRows} rows`;
+
+            if (guidance.likelyShort) {
+                advisor.innerHTML = `<strong>Range Advisor:</strong> Current ${guidance.rangeValue} is likely short (est. ${guidance.selectedEstimate} rows). For ${modeLabel}, use at least ${guidance.recommendedRange}.`;
+            } else {
+                advisor.innerHTML = `<strong>Range Advisor:</strong> ${guidance.rangeValue} is likely enough (est. ${guidance.selectedEstimate} rows). Requirement: ${modeLabel}.`;
+            }
         }
 
                     // Time window slider related variables
@@ -2165,6 +2379,11 @@
                     }
                 }
 
+                const rangeGuidance = getRangeGuidance();
+                if (rangeGuidance && rangeGuidance.likelyShort) {
+                    showStatus('warning', `Selected range ${rangeGuidance.rangeValue} may be short for current settings. Recommended: ${rangeGuidance.recommendedRange}.`);
+                }
+
                 // Get prediction quality parameters
                 const temperature = parseFloat(document.getElementById('temperature').value);
                 const topP = parseFloat(document.getElementById('top-p').value);
@@ -2235,6 +2454,8 @@
                 renderFallbackChart(result);
                 showStatus('warning', `Primary chart render failed: ${err.message}. Showing fallback chart.`);
             }
+
+            updateHorizonSnapshots(result);
             
             // Display comparison analysis (if actual data exists)
             if (result.has_comparison) {
@@ -2245,6 +2466,228 @@
 
             // Bring prediction chart into view after result is rendered.
             scrollToPredictionResults();
+        }
+
+        function updateHorizonSnapshots(result) {
+            const section = document.getElementById('horizon-section');
+            const predictions = Array.isArray(result?.prediction_results) ? result.prediction_results : [];
+
+            if (predictions.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+
+            const parsed = predictions
+                .map(item => ({
+                    raw: item,
+                    ts: new Date(item.timestamp)
+                }))
+                .filter(item => !Number.isNaN(item.ts.getTime()))
+                .sort((a, b) => a.ts - b.ts);
+
+            if (parsed.length === 0) {
+                setHorizonCard('1h', null);
+                setHorizonCard('1d', null);
+                setHorizonCard('3d', null);
+                return;
+            }
+
+            // Use first forecast timestamp as the baseline for horizon offsets.
+            const baseTs = parsed[0].ts;
+            const oneHourMs = 60 * 60 * 1000;
+            const oneDayMs = 24 * oneHourMs;
+
+            const plus1h = findNearestPredictionAtOrAfter(parsed, new Date(baseTs.getTime() + oneHourMs));
+            const plus1d = findNearestPredictionAtOrAfter(parsed, new Date(baseTs.getTime() + oneDayMs));
+            const plus3d = findNearestPredictionAtOrAfter(parsed, new Date(baseTs.getTime() + (3 * oneDayMs)));
+
+            setHorizonCard('1h', plus1h);
+            setHorizonCard('1d', plus1d);
+            setHorizonCard('3d', plus3d);
+
+            const availability = {
+                '1h': Boolean(plus1h),
+                '1d': Boolean(plus1d),
+                '3d': Boolean(plus3d)
+            };
+            const inferredStepMinutes = inferPredictionStepMinutes(parsed);
+            updateSnapshotRecommendations(parsed, availability, inferredStepMinutes);
+        }
+
+        function inferPredictionStepMinutes(parsedPredictions) {
+            if (!Array.isArray(parsedPredictions) || parsedPredictions.length < 2) {
+                return null;
+            }
+
+            const diffs = [];
+            for (let i = 1; i < parsedPredictions.length; i++) {
+                const prevTs = parsedPredictions[i - 1].ts.getTime();
+                const curTs = parsedPredictions[i].ts.getTime();
+                const diffMin = Math.round((curTs - prevTs) / 60000);
+                if (diffMin > 0) {
+                    diffs.push(diffMin);
+                }
+            }
+
+            if (diffs.length === 0) {
+                return null;
+            }
+
+            const counts = new Map();
+            for (const d of diffs) {
+                counts.set(d, (counts.get(d) || 0) + 1);
+            }
+
+            let best = diffs[0];
+            let bestCount = 0;
+            for (const [k, v] of counts.entries()) {
+                if (v > bestCount) {
+                    bestCount = v;
+                    best = k;
+                }
+            }
+
+            return best;
+        }
+
+        function findNearestPredictionAtOrAfter(parsedPredictions, targetDate) {
+            for (const item of parsedPredictions) {
+                if (item.ts >= targetDate) {
+                    return item;
+                }
+            }
+            return null;
+        }
+
+        function setHorizonCard(key, predictionItem) {
+            const valueEl = document.getElementById(`horizon-${key}-value`);
+            const timeEl = document.getElementById(`horizon-${key}-time`);
+
+            if (!valueEl || !timeEl) {
+                return;
+            }
+
+            if (!predictionItem) {
+                valueEl.textContent = 'N/A';
+                valueEl.classList.add('horizon-unavailable');
+                timeEl.textContent = 'Not enough prediction horizon';
+                return;
+            }
+
+            valueEl.classList.remove('horizon-unavailable');
+            const closeValue = Number(predictionItem.raw.close);
+            valueEl.textContent = Number.isFinite(closeValue) ? closeValue.toFixed(4) : 'N/A';
+            timeEl.textContent = `Predicted close @ ${predictionItem.ts.toLocaleString()}`;
+        }
+
+        function getIntervalMinutes() {
+            const selected = (document.getElementById('live-interval')?.value || '').trim();
+            const mapping = {
+                '5m': 5,
+                '15m': 15,
+                '30m': 30,
+                '1h': 60,
+                '1d': 1440,
+                '5d': 7200
+            };
+
+            if (mapping[selected]) {
+                return mapping[selected];
+            }
+
+            const tf = (currentDataInfo?.timeframe || '').toLowerCase();
+            if (tf.includes('minute')) {
+                const n = parseInt(tf, 10);
+                if (Number.isInteger(n) && n > 0) return n;
+                return 1;
+            }
+            if (tf.includes('hour')) {
+                const n = parseInt(tf, 10);
+                if (Number.isInteger(n) && n > 0) return n * 60;
+                return 60;
+            }
+            if (tf.includes('day')) {
+                const n = parseInt(tf, 10);
+                if (Number.isInteger(n) && n > 0) return n * 1440;
+                return 1440;
+            }
+
+            return null;
+        }
+
+        function updateSnapshotRecommendations(predictions, availability, inferredStepMinutes) {
+            const recoTextEl = document.getElementById('snapshot-reco-text');
+            if (!recoTextEl) return;
+
+            const predLenInput = parseInt(document.getElementById('pred-len')?.value, 10) || 0;
+            const predLenMax = parseInt(document.getElementById('pred-len')?.max, 10) || 240;
+            const intervalMinutes = inferredStepMinutes || getIntervalMinutes();
+            const rangeValue = document.getElementById('live-range')?.value || '7d';
+
+            if (!intervalMinutes) {
+                recoTextEl.textContent = 'Could not infer interval. Select a live interval and run prediction again.';
+                return;
+            }
+
+            const targets = [
+                { key: '1h', label: '+1h', minutes: 60 },
+                { key: '1d', label: '+1d', minutes: 1440 },
+                { key: '3d', label: '+3d', minutes: 4320 }
+            ];
+
+            const required = targets.map(t => ({
+                label: t.label,
+                steps: Math.floor(t.minutes / intervalMinutes) + 1
+            }));
+
+            const missing = required.filter(r => !availability[r.label.slice(1).toLowerCase()]);
+
+            const cadenceLabel = intervalMinutes >= 60
+                ? `${(intervalMinutes / 60).toFixed(intervalMinutes % 60 === 0 ? 0 : 2)}h`
+                : `${intervalMinutes}m`;
+
+            if (missing.length === 0) {
+                recoTextEl.textContent = `All snapshots available. Actual prediction cadence is ${cadenceLabel}, and pred_len ${predLenInput} is sufficient.`;
+                return;
+            }
+
+            const maxNeeded = Math.max(...required.map(r => r.steps));
+            const missingLabel = missing.map(m => m.label).join(', ');
+
+            let text = `${missingLabel} unavailable. Actual prediction cadence is ${cadenceLabel}; set pred_len >= ${maxNeeded} to show +1h, +1d, +3d.`;
+
+            if (maxNeeded > predLenMax) {
+                const bestInterval = suggestIntervalForMaxPredLen(predLenMax);
+                text += ` Current pred_len max is ${predLenMax}, so use a larger interval (suggested: ${bestInterval}) or increase pred_len max in UI.`;
+            }
+
+            if (rangeValue === '7d') {
+                text += ' If lookback keeps shrinking, switch range to 1mo or 3mo for more historical rows.';
+            }
+
+            recoTextEl.textContent = text;
+        }
+
+        function suggestIntervalForMaxPredLen(predLenMax) {
+            const candidates = [
+                { value: '5m', minutes: 5 },
+                { value: '15m', minutes: 15 },
+                { value: '30m', minutes: 30 },
+                { value: '1h', minutes: 60 },
+                { value: '1d', minutes: 1440 }
+            ];
+
+            // Need +3d horizon: floor(4320 / interval) + 1 <= predLenMax
+            for (const c of candidates) {
+                const need = Math.floor(4320 / c.minutes) + 1;
+                if (need <= predLenMax) {
+                    return c.value;
+                }
+            }
+
+            return '1d';
         }
 
         function scrollToPredictionResults() {
@@ -2410,6 +2853,9 @@
             });
 
             document.getElementById('live-symbol').addEventListener('input', updateChartMetaChips);
+
+            document.getElementById('live-interval').addEventListener('change', updateRangeAdvisor);
+            document.getElementById('live-range').addEventListener('change', updateRangeAdvisor);
             
             // Prediction button
             document.getElementById('predict-btn').addEventListener('click', startPrediction);
@@ -2428,7 +2874,10 @@
             document.getElementById('pred-len').addEventListener('input', function() {
                 updateSliderFromInputs();
                 updateChartHorizonChip();
+                updateRangeAdvisor();
             });
+
+            document.getElementById('lookback').addEventListener('input', updateRangeAdvisor);
         }
 
         // Display status information
