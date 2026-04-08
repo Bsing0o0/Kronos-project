@@ -43,6 +43,9 @@ Desktop.ini
 # Linux
 *~
 
+# Local API keys (never commit)
+webui/api_keys.json
+
 # Data files (large files)
 *.feather
 *.parquet
